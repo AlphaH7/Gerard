@@ -11,6 +11,9 @@ services:
       - ./backend:/app
     depends_on:
       - db
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db/fastapi_db
+      - SECRET_KEY=axjwtkey
 
   db:
     image: postgres:13
@@ -24,6 +27,16 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: nextjs-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
-

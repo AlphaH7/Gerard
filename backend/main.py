@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import create_engine, MetaData
@@ -7,15 +8,18 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional, List
+from fastapi.middleware.cors import CORSMiddleware
+import logging
 
-DATABASE_URL = "postgresql://postgres:password@db/fastapi_db"
+
+DATABASE_URL = os.getenv('DATABASE_URL', "postgresql://postgres:password@db/fastapi_db")
 
 database = Database(DATABASE_URL)
 metadata = MetaData()
 
 engine = create_engine(DATABASE_URL)
 
-SECRET_KEY = "secret"
+SECRET_KEY = os.getenv('SECRET_KEY', "secret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -24,12 +28,31 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:3000",
+    # "https://ax-frontend-domain.com",
+    "https://alistier.dev"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 @app.on_event("startup")
 async def startup():
+    logger.info("Connecting to the database...")
     await database.connect()
 
 @app.on_event("shutdown")
 async def shutdown():
+    logger.info("Disconnecting from the database...")
     await database.disconnect()
 
 def verify_password(plain_password, hashed_password):
@@ -144,4 +167,3 @@ async def delete_document(document_id: int):
     query = documents.delete().where(documents.c.id == document_id)
     await database.execute(query)
     return {"detail": "Document deleted"}
-
