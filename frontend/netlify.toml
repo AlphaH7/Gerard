@@ -1,0 +1,13 @@
+[build]
+  publish = "out"
+  functions = "netlify-functions"
+  command = "npm run build-prod"
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/next_/*"
+  status = 200
+
+[build.environment]
+  NETLIFY_NEXT_PLUGIN_SKIP = "true"
+
