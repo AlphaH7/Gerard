@@ -26,6 +26,9 @@ cd Gerard
 docker-compose up --build
 
 ```
+If all services run well and are up you must see the following on docker desktop - 
+
+![image](https://github.com/AlphaH7/Gerard/assets/22297072/d5d49b78-73b2-4b47-894e-fba60ccac647)
 
 
 ## File Heirarchy
