@@ -13,18 +13,17 @@ RUN npm install
 # Copy the application files
 COPY . .
 
-# format the application
-RUN npm run format
-
 # Build the application
 RUN npm run build
 
-# Build prod image
-RUN npm run build-prod
+# format the application
+RUN npm run format
 
 # Expose the port the app runs on
 EXPOSE 3000
 
-# Start the application
+# # Start the application
 CMD ["npm", "start"]
 
+# Intermediately Start the application
+# CMD ["npm", "dev-secure"]
