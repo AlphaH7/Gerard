@@ -7,7 +7,9 @@ This application is enclosed by Kubernetes & Docker. Currently has 2 containers 
 - Docker 
 - Kubernetes (For streamlined deployments, load balancers and auto scaling)
 - Fast API (Python)
-- Vector DB (Document upload support)
+- Milvus Vector DB (Document upload support)
+- Attu Vector DB Client (Document upload support visualization)
+- Minio (Document upload caching on server)
 - Postgres SQL db (for user data collection support)
 - React JS - Next JS (For chat support, teacher login and file upload UX support)
 
