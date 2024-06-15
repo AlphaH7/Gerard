@@ -128,9 +128,9 @@ async def register(user: UserCreate):
     last_record_id = await database.execute(query)
     return {**user.dict(), "id": last_record_id, "role": "user"}
 
-@app.post("/login")
+@app.post("/login", response_model=dict)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    query = users.select().where(users.c.email == form_data.username)
+    query = users.select().where(users.c.username == form_data.username)
     user = await database.fetch_one(query)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid credentials")
