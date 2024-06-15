@@ -11,6 +11,21 @@ This application is enclosed by Kubernetes & Docker. Currently has 2 containers 
 - Postgres SQL db (for user data collection support)
 - React JS - Next JS (For chat support, teacher login and file upload UX support)
 
+## Setup & Running the project
+
+You need to have docker installed. 
+
+```
+
+git clone git@github.com:AlphaH7/Gerard.git
+
+cd Gerard
+
+docker-compose up --build
+
+```
+
+
 ## File Heirarchy
 
 ```
