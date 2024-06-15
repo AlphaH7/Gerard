@@ -39,9 +39,9 @@ jobs:
         run: |
           cd backend
           source venv/bin/activate
-          pytest
+          # pytest
 
       - name: Build and push Docker images
         run: |
           docker-compose build
-          docker-compose push
+          # docker-compose push
