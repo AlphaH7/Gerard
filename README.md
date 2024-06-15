@@ -29,7 +29,7 @@ docker-compose up --build
 ## File Heirarchy
 
 ```
-fastapi-nextjs-app/
+Gerard/
 │
 ├── backend/
 │   ├── main.py
