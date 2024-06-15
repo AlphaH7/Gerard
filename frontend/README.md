@@ -25,7 +25,7 @@ This project uses - Next.js, TypeScript, ESLint, Prettier, Lint-Staged, Jest, Te
 npm run dev
 ```
 
-Open http://localhost:3000 with your favorite browser to see your project.
+Open http://localhost:7777 with your favorite browser to see your project.
 
 ```shell
 .

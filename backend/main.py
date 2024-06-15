@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import create_engine, MetaData
 from databases import Database
@@ -10,14 +10,28 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+import aiofiles
+from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+from auth import get_current_user_id
 
-
+# Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL', "postgresql://postgres:password@db/fastapi_db")
 
 database = Database(DATABASE_URL)
 metadata = MetaData()
 
 engine = create_engine(DATABASE_URL)
+
+# Milvus Configuration
+MILVUS_HOST = os.getenv('MILVUS_HOST', "milvus")
+MILVUS_PORT = os.getenv('MILVUS_PORT', "19530")
+
+connections.connect("default", host=MILVUS_HOST, port=MILVUS_PORT)
+
+# MinIO Configuration
+MINIO_ADDRESS = os.getenv('MINIO_ADDRESS', "minio:9000")
+MINIO_ACCESS_KEY = os.getenv('MINIO_ROOT_USER', "minioadmin")
+MINIO_SECRET_KEY = os.getenv('MINIO_ROOT_PASSWORD', "minioadmin")
 
 SECRET_KEY = os.getenv('SECRET_KEY', "secret")
 ALGORITHM = "HS256"
@@ -167,3 +181,44 @@ async def delete_document(document_id: int):
     query = documents.delete().where(documents.c.id == document_id)
     await database.execute(query)
     return {"detail": "Document deleted"}
+
+# New endpoint to upload files to MinIO and store vector embeddings in Milvus
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...), user_id: int = Depends(get_current_user_id)):
+    # Save the file to MinIO
+    minio_client = Minio(
+        MINIO_ADDRESS,
+        access_key=MINIO_ACCESS_KEY,
+        secret_key=MINIO_SECRET_KEY,
+        secure=False
+    )
+    bucket_name = "documents"
+    if not minio_client.bucket_exists(bucket_name):
+        minio_client.make_bucket(bucket_name)
+    file_location = f"{bucket_name}/{file.filename}"
+    async with aiofiles.open(file.filename, 'wb') as out_file:
+        while content := await file.read(1024):  # Read file in chunks
+            await out_file.write(content)
+    minio_client.fput_object(bucket_name, file.filename, file.filename)
+    
+    # Generate vector embedding (assuming a dummy vector for this example)
+    vector = [0.0] * 128  # Replace with actual embedding generation logic
+    
+    # Store the embedding in Milvus
+    collection_name = "documents"
+    if not Collection.exists(collection_name):
+        fields = [
+            FieldSchema(name="file_path", dtype=DataType.VARCHAR, max_length=500),
+            FieldSchema(name="user_id", dtype=DataType.INT64),
+            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=128)
+        ]
+        schema = CollectionSchema(fields, description="Document collection")
+        collection = Collection(name=collection_name, schema=schema)
+    else:
+        collection = Collection(name=collection_name)
+    collection.insert([[file_location], [user_id], [vector]])
+    
+    # Store the document record in the database
+    query = documents.insert().values(document_url=file_location, user_id=user_id)
+    last_record_id = await database.execute(query)
+    return {"id": last_record_id, "document_url": file_location, "filename": file.filename, "user_id": user_id}

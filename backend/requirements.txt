@@ -9,3 +9,5 @@ python-jose
 asyncpg
 psycopg2-binary
 pytest
+pymilvus
+aiofiles
