@@ -6,4 +6,4 @@ pydantic
 passlib
 bcrypt
 python-jose
-
+asyncpg
