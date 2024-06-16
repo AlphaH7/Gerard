@@ -11,8 +11,14 @@ from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import aiofiles
-from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
+from minio import Minio
+from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, has_collection
 from auth import get_current_user_id
+from sentence_transformers import SentenceTransformer
+from langchain.vectorstores import Milvus
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import CharacterTextSplitter
 
 # Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL', "postgresql://postgres:password@db/fastapi_db")
@@ -23,7 +29,7 @@ metadata = MetaData()
 engine = create_engine(DATABASE_URL)
 
 # Milvus Configuration
-MILVUS_HOST = os.getenv('MILVUS_HOST', "milvus")
+MILVUS_HOST = os.getenv('MILVUS_HOST', "local.dev.server")
 MILVUS_PORT = os.getenv('MILVUS_PORT', "19530")
 
 connections.connect("default", host=MILVUS_HOST, port=MILVUS_PORT)
@@ -38,7 +44,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 app = FastAPI()
 
@@ -195,28 +201,26 @@ async def upload_file(file: UploadFile = File(...), user_id: int = Depends(get_c
     bucket_name = "documents"
     if not minio_client.bucket_exists(bucket_name):
         minio_client.make_bucket(bucket_name)
-    file_location = f"{bucket_name}/{file.filename}"
+    file_location = f"{bucket_name}/documents_uploaded/{file.filename}"
+    
     async with aiofiles.open(file.filename, 'wb') as out_file:
         while content := await file.read(1024):  # Read file in chunks
             await out_file.write(content)
     minio_client.fput_object(bucket_name, file.filename, file.filename)
     
-    # Generate vector embedding (assuming a dummy vector for this example)
-    vector = [0.0] * 128  # Replace with actual embedding generation logic
+    loader = PyPDFLoader(file.filename)
+    pages = loader.load_and_split()
+    local_embedding_model = "all-MiniLM-L6-v2"
+    embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
+    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    docs = text_splitter.split_documents(pages)
     
-    # Store the embedding in Milvus
-    collection_name = "documents"
-    if not Collection.exists(collection_name):
-        fields = [
-            FieldSchema(name="file_path", dtype=DataType.VARCHAR, max_length=500),
-            FieldSchema(name="user_id", dtype=DataType.INT64),
-            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=128)
-        ]
-        schema = CollectionSchema(fields, description="Document collection")
-        collection = Collection(name=collection_name, schema=schema)
-    else:
-        collection = Collection(name=collection_name)
-    collection.insert([[file_location], [user_id], [vector]])
+    vector_db = Milvus.from_documents(
+        docs,
+        embeddings,
+        collection_name="documents",
+        connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT},
+    )
     
     # Store the document record in the database
     query = documents.insert().values(document_url=file_location, user_id=user_id)

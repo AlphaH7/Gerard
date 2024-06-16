@@ -11,3 +11,9 @@ psycopg2-binary
 pytest
 pymilvus
 aiofiles
+minio
+sentence-transformers
+langchain
+langchain-community
+pypdf
+uuid
