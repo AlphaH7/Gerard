@@ -15,24 +15,34 @@ from minio import Minio
 from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, has_collection
 from auth import get_current_user_id
 from sentence_transformers import SentenceTransformer
-from langchain.vectorstores import Milvus
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import Milvus
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
+import uuid
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL', "postgresql://postgres:password@db/fastapi_db")
-
 database = Database(DATABASE_URL)
 metadata = MetaData()
 
 engine = create_engine(DATABASE_URL)
 
 # Milvus Configuration
-MILVUS_HOST = os.getenv('MILVUS_HOST', "local.dev.server")
+MILVUS_HOST = os.getenv('MILVUS_HOST', "milvus")
 MILVUS_PORT = os.getenv('MILVUS_PORT', "19530")
 
-connections.connect("default", host=MILVUS_HOST, port=MILVUS_PORT)
+logger.info(f"Connecting to Milvus at {MILVUS_HOST}:{MILVUS_PORT}")
+try:
+    connections.connect("default", host=MILVUS_HOST, port=MILVUS_PORT)
+    logger.info("Connected to Milvus successfully")
+except Exception as e:
+    logger.error(f"Failed to connect to Milvus: {e}")
+    raise
 
 # MinIO Configuration
 MINIO_ADDRESS = os.getenv('MINIO_ADDRESS', "minio:9000")
@@ -50,7 +60,6 @@ app = FastAPI()
 
 origins = [
     "http://localhost:3000",
-    # "https://ax-frontend-domain.com",
     "https://alistier.dev"
 ]
 
@@ -61,9 +70,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 @app.on_event("startup")
 async def startup():
@@ -131,6 +137,17 @@ documents = Table(
     Column("user_id", Integer, ForeignKey("users.id"))
 )
 
+courses = Table(
+    "courses",
+    metadata,
+    Column("id", String, primary_key=True, default=lambda: str(uuid.uuid4())),
+    Column("course_id", String, unique=True, index=True),
+    Column("course_name", String),
+    Column("course_description", String),
+    Column("course_lead", Integer),
+)
+
+
 metadata.create_all(engine)
 
 @app.post("/register", response_model=UserRead)
@@ -188,7 +205,6 @@ async def delete_document(document_id: int):
     await database.execute(query)
     return {"detail": "Document deleted"}
 
-# New endpoint to upload files to MinIO and store vector embeddings in Milvus
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...), user_id: int = Depends(get_current_user_id)):
     # Save the file to MinIO
