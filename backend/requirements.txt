@@ -17,3 +17,5 @@ langchain
 langchain-community
 pypdf
 llama-cpp-python
+httpx
+langchain-huggingface

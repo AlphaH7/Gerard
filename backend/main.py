@@ -1,4 +1,5 @@
 import os
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import create_engine, MetaData
@@ -7,7 +8,7 @@ from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Optional, List, AsyncGenerator
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import aiofiles
@@ -16,7 +17,7 @@ from pymilvus import connections, Collection, FieldSchema, CollectionSchema, Dat
 from auth import get_current_user_id
 from sentence_transformers import SentenceTransformer
 from langchain_community.vectorstores import Milvus
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
 import uuid
@@ -25,6 +26,8 @@ from langchain.chains import RetrievalQA
 from langchain_community.llms import LlamaCpp
 from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
 from langchain_core.prompts import PromptTemplate
+from fastapi.responses import StreamingResponse
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -133,6 +136,11 @@ class CourseRead(BaseModel):
     course_name: str
     course_description: str
     course_lead: int
+
+class ChatRequest(BaseModel):
+    course_id: str
+    question: str
+
 
 from sqlalchemy import Table, Column, Integer, String, ForeignKey
 
@@ -310,14 +318,110 @@ async def delete_course(course_id: str):
     await database.execute(query)
     return {"detail": "Course deleted"}
 
-@app.post("/chat")
-async def chat(course_id: str, question: str):
-    # Retrieve documents related to the course_id
-    # query = documents.select().where(documents.c.course_id == course_id)
-    # docs = await database.fetch_all(query)
+# @app.post("/chat")
+# async def chat(course_id: str, question: str):
+#     # Retrieve documents related to the course_id
+#     # query = documents.select().where(documents.c.course_id == course_id)
+#     # docs = await database.fetch_all(query)
 
-    # if not docs:
-    #     raise HTTPException(status_code=404, detail="No documents found for the specified course")
+#     # if not docs:
+#     #     raise HTTPException(status_code=404, detail="No documents found for the specified course")
+
+#     # Retrieve the embeddings from Milvus and generate a response
+#     local_embedding_model = "all-MiniLM-L6-v2"
+#     embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
+    
+#     vector_db = Milvus(
+#         embeddings,
+#         collection_name="documents",
+#         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
+#     )
+
+#     template = """Question: {question}
+#     Answer: Let's work this out in a step by step way to be sure we have the right answer"""
+#     prompt = PromptTemplate.from_template(template)
+#     callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+
+#     local_path = (
+#         "gpt4all-falcon-newbpe-q4_0.gguf" 
+#     )
+
+#     llm = LlamaCpp(
+#         model_path=local_path,
+#         temperature=0.75,
+#         max_tokens=2000,
+#         top_p=1,
+#         n_ctx=4096,
+#         callback_manager=callback_manager,
+#         verbose=True,
+#     )
+    
+#     relevant_docs = vector_db.similarity_search(question, k=5)
+    
+#     # Assuming the response is generated from the relevant docs (you can replace this with actual generation logic)
+#     response = ""
+#     for doc in relevant_docs:
+#         response += f"- {doc.page_content}\n"        
+
+#     prompt_template = """Use the following pieces of context to answer the question at the end. If you don't find the answer in tne context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context.
+
+#     {response}
+
+#     Question: {question}
+#     Helpful Answer:"""
+#     QA_CHAIN_PROMPT = PromptTemplate(
+#         template=prompt_template, input_variables=["context", "question"]
+#     )
+
+#     # chain_type_kwargs={
+#     #         "refine_prompt": QA_CHAIN_PROMPT
+#     #         }
+
+#     qa_chain = RetrievalQA.from_chain_type(
+#         llm,
+#         chain_type="refine",
+#         retriever=vector_db.as_retriever(search_type="mmr", search_kwargs={"k": 1}),
+#         return_source_documents=False,
+#         callbacks=None,
+#         chain_type_kwargs={"refine_prompt": QA_CHAIN_PROMPT,"verbose":True},
+#         verbose=True
+#     )
+#     result = qa_chain({"query": question}) # shall be query
+#     return result["result"]
+
+
+async def stream_ollama_model(question: str, context: str) -> AsyncGenerator[str, None]:
+    url = "http://host.docker.internal:11434/api/generate"
+    payload = {
+        "model": "llama3",
+        "prompt": f"Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context. Answer as if you are a teching assistant, be kind and follow all teaching principles. Try and answer the sudents kindly and gently.\n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
+        "stream": False
+    }
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0)) as client:
+        try:
+            async with client.stream("POST", url, json=payload, headers=headers) as response:
+                if response.status_code != 200:
+                    detail = await response.text()
+                    logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
+                    raise HTTPException(status_code=response.status_code, detail=detail)
+                async for chunk in response.aiter_text():
+                    yield chunk
+        except httpx.ConnectError as e:
+            logger.error(f"Connection error: {e}")
+            raise HTTPException(status_code=502, detail="Failed to connect to the Ollama server.")
+        except httpx.ReadTimeout as e:
+            logger.error(f"Read timeout error: {e}")
+            raise HTTPException(status_code=504, detail="Read timeout from the Ollama server.")
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    course_id = request.course_id
+    question = request.question
 
     # Retrieve the embeddings from Milvus and generate a response
     local_embedding_model = "all-MiniLM-L6-v2"
@@ -329,54 +433,11 @@ async def chat(course_id: str, question: str):
         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
     )
 
-    template = """Question: {question}
-    Answer: Let's work this out in a step by step way to be sure we have the right answer"""
-    prompt = PromptTemplate.from_template(template)
-    callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
-
-    local_path = (
-        "gpt4all-falcon-newbpe-q4_0.gguf" 
-    )
-
-    llm = LlamaCpp(
-        model_path=local_path,
-        temperature=0.75,
-        max_tokens=2000,
-        top_p=1,
-        n_ctx=4096,
-        callback_manager=callback_manager,
-        verbose=True,
-    )
+    relevant_docs = vector_db.similarity_search(question, k=5, filter={"course_id": course_id})
     
-    relevant_docs = vector_db.similarity_search(question, k=5)
-    
-    # Assuming the response is generated from the relevant docs (you can replace this with actual generation logic)
-    response = ""
+    # Combine the content of relevant documents into a single context string
+    context = ""
     for doc in relevant_docs:
-        response += f"- {doc.page_content}\n"        
+        context += f"- {doc.page_content}\n"
 
-    prompt_template = """Use the following pieces of context to answer the question at the end. If you don't find the answer in tne context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context.
-
-    {response}
-
-    Question: {question}
-    Helpful Answer:"""
-    QA_CHAIN_PROMPT = PromptTemplate(
-        template=prompt_template, input_variables=["context", "question"]
-    )
-
-    # chain_type_kwargs={
-    #         "refine_prompt": QA_CHAIN_PROMPT
-    #         }
-
-    qa_chain = RetrievalQA.from_chain_type(
-        llm,
-        chain_type="refine",
-        retriever=vector_db.as_retriever(search_type="mmr", search_kwargs={"k": 1}),
-        return_source_documents=False,
-        callbacks=None,
-        chain_type_kwargs={"refine_prompt": QA_CHAIN_PROMPT,"verbose":True},
-        verbose=True
-    )
-    result = qa_chain({"query": question}) # shall be query
-    return result["result"]
+    return StreamingResponse(stream_ollama_model(question, context), media_type="text/plain")
