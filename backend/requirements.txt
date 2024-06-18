@@ -16,3 +16,4 @@ sentence-transformers
 langchain
 langchain-community
 pypdf
+llama-cpp-python

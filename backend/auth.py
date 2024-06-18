@@ -32,6 +32,16 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 async def get_current_user_id(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("subid")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+    return user_id
+
+async def get_current_user_name(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
@@ -42,7 +52,7 @@ async def get_current_user_id(token: str = Depends(oauth2_scheme)):
 def decode_token_and_get_user_id(token: str) -> Optional[str]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
+        user_id: str = payload.get("subid")
         if user_id is None:
             return None
         return user_id

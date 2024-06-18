@@ -20,6 +20,11 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
 import uuid
+from langchain.prompts import PromptTemplate
+from langchain.chains import RetrievalQA
+from langchain_community.llms import LlamaCpp
+from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
+from langchain_core.prompts import PromptTemplate
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -123,7 +128,7 @@ class CourseCreate(BaseModel):
     course_description: str
 
 class CourseRead(BaseModel):
-    id: str
+    id: int
     course_id: str
     course_name: str
     course_description: str
@@ -153,7 +158,7 @@ documents = Table(
 courses = Table(
     "courses",
     metadata,
-    Column("id", String, primary_key=True, default=lambda: str(uuid.uuid4())),
+    Column("id", Integer, primary_key=True),
     Column("course_id", String, unique=True, index=True),
     Column("course_name", String),
     Column("course_description", String),
@@ -183,7 +188,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await database.fetch_one(query)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid credentials")
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = create_access_token(data={"sub": user.username, 'subid': user.id})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/documents", response_model=DocumentRead)
@@ -255,12 +260,18 @@ async def upload_file(course_id: str, user_id: int = Depends(get_current_user_id
     )
     
     # Store the document record in the database
-    query = documents.insert().values(document_url=file_location, user_id=user_id, course_id=course_id)
-    last_record_id = await database.execute(query)
-    return {"id": last_record_id, "document_url": file_location, "filename": file.filename, "user_id": user_id, "course_id": course_id}
+    # query = documents.insert().values(document_url=file_location, user_id=user_id, course_id=course_id)
+    # last_record_id = await database.execute(query)
+    return {"message": "Course Content Updated", "course_id": course_id}
 
 @app.post("/courses", response_model=CourseRead)
 async def create_course(course: CourseCreate, user_id: int = Depends(get_current_user_id)):
+    print('Course details -',{
+        "course_id":course.course_id,
+        "course_name":course.course_name,
+        "course_description":course.course_description,
+        "course_lead":user_id
+    })
     query = courses.insert().values(
         course_id=course.course_id,
         course_name=course.course_name,
@@ -268,7 +279,7 @@ async def create_course(course: CourseCreate, user_id: int = Depends(get_current
         course_lead=user_id
     )
     last_record_id = await database.execute(query)
-    return {**course.dict(), "id": last_record_id, "course_lead": user_id}
+    return {**course.dict(), "id": last_record_id, "course_id":course.course_id, "course_name":course.course_name, "course_description":course.course_description, "course_lead":user_id, "course_lead": user_id}
 
 @app.get("/courses", response_model=List[CourseRead])
 async def read_courses(skip: int = 0, limit: int = 10):
@@ -301,25 +312,71 @@ async def delete_course(course_id: str):
 
 @app.post("/chat")
 async def chat(course_id: str, question: str):
-    query = documents.select().where(documents.c.course_id == course_id)
-    docs = await database.fetch_all(query)
+    # Retrieve documents related to the course_id
+    # query = documents.select().where(documents.c.course_id == course_id)
+    # docs = await database.fetch_all(query)
 
-    if not docs:
-        raise HTTPException(status_code=404, detail="No documents found for the specified course")
+    # if not docs:
+    #     raise HTTPException(status_code=404, detail="No documents found for the specified course")
 
     # Retrieve the embeddings from Milvus and generate a response
     local_embedding_model = "all-MiniLM-L6-v2"
     embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
     
     vector_db = Milvus(
+        embeddings,
         collection_name="documents",
         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
+    )
+
+    template = """Question: {question}
+    Answer: Let's work this out in a step by step way to be sure we have the right answer"""
+    prompt = PromptTemplate.from_template(template)
+    callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+
+    local_path = (
+        "gpt4all-falcon-newbpe-q4_0.gguf" 
+    )
+
+    llm = LlamaCpp(
+        model_path=local_path,
+        temperature=0.75,
+        max_tokens=2000,
+        top_p=1,
+        n_ctx=4096,
+        callback_manager=callback_manager,
+        verbose=True,
     )
     
     relevant_docs = vector_db.similarity_search(question, k=5)
     
-    response = "Based on your question, here are some insights from the documents:\n"
+    # Assuming the response is generated from the relevant docs (you can replace this with actual generation logic)
+    response = ""
     for doc in relevant_docs:
-        response += f"- {doc.page_content}\n"
-    
-    return {"response": response}
+        response += f"- {doc.page_content}\n"        
+
+    prompt_template = """Use the following pieces of context to answer the question at the end. If you don't find the answer in tne context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context.
+
+    {response}
+
+    Question: {question}
+    Helpful Answer:"""
+    QA_CHAIN_PROMPT = PromptTemplate(
+        template=prompt_template, input_variables=["context", "question"]
+    )
+
+    # chain_type_kwargs={
+    #         "refine_prompt": QA_CHAIN_PROMPT
+    #         }
+
+    qa_chain = RetrievalQA.from_chain_type(
+        llm,
+        chain_type="refine",
+        retriever=vector_db.as_retriever(search_type="mmr", search_kwargs={"k": 1}),
+        return_source_documents=False,
+        callbacks=None,
+        chain_type_kwargs={"refine_prompt": QA_CHAIN_PROMPT,"verbose":True},
+        verbose=True
+    )
+    result = qa_chain({"query": question}) # shall be query
+    return result["result"]
