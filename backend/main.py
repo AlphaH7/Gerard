@@ -117,6 +117,18 @@ class DocumentRead(BaseModel):
     document_url: str
     user_id: int
 
+class CourseCreate(BaseModel):
+    course_id: str
+    course_name: str
+    course_description: str
+
+class CourseRead(BaseModel):
+    id: str
+    course_id: str
+    course_name: str
+    course_description: str
+    course_lead: int
+
 from sqlalchemy import Table, Column, Integer, String, ForeignKey
 
 users = Table(
@@ -134,7 +146,8 @@ documents = Table(
     metadata,
     Column("id", Integer, primary_key=True),
     Column("document_url", String),
-    Column("user_id", Integer, ForeignKey("users.id"))
+    Column("user_id", Integer, ForeignKey("users.id")),
+    Column("course_id", String, ForeignKey("courses.course_id"))
 )
 
 courses = Table(
@@ -144,9 +157,8 @@ courses = Table(
     Column("course_id", String, unique=True, index=True),
     Column("course_name", String),
     Column("course_description", String),
-    Column("course_lead", Integer),
+    Column("course_lead", Integer, ForeignKey("users.id")),
 )
-
 
 metadata.create_all(engine)
 
@@ -206,7 +218,7 @@ async def delete_document(document_id: int):
     return {"detail": "Document deleted"}
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), user_id: int = Depends(get_current_user_id)):
+async def upload_file(course_id: str, user_id: int = Depends(get_current_user_id), file: UploadFile = File(...)):
     # Save the file to MinIO
     minio_client = Minio(
         MINIO_ADDRESS,
@@ -231,6 +243,10 @@ async def upload_file(file: UploadFile = File(...), user_id: int = Depends(get_c
     text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
     docs = text_splitter.split_documents(pages)
     
+    # Add course_id to document metadata
+    for doc in docs:
+        doc.metadata.update({"course_id": course_id})
+    
     vector_db = Milvus.from_documents(
         docs,
         embeddings,
@@ -239,6 +255,71 @@ async def upload_file(file: UploadFile = File(...), user_id: int = Depends(get_c
     )
     
     # Store the document record in the database
-    query = documents.insert().values(document_url=file_location, user_id=user_id)
+    query = documents.insert().values(document_url=file_location, user_id=user_id, course_id=course_id)
     last_record_id = await database.execute(query)
-    return {"id": last_record_id, "document_url": file_location, "filename": file.filename, "user_id": user_id}
+    return {"id": last_record_id, "document_url": file_location, "filename": file.filename, "user_id": user_id, "course_id": course_id}
+
+@app.post("/courses", response_model=CourseRead)
+async def create_course(course: CourseCreate, user_id: int = Depends(get_current_user_id)):
+    query = courses.insert().values(
+        course_id=course.course_id,
+        course_name=course.course_name,
+        course_description=course.course_description,
+        course_lead=user_id
+    )
+    last_record_id = await database.execute(query)
+    return {**course.dict(), "id": last_record_id, "course_lead": user_id}
+
+@app.get("/courses", response_model=List[CourseRead])
+async def read_courses(skip: int = 0, limit: int = 10):
+    query = courses.select().offset(skip).limit(limit)
+    return await database.fetch_all(query)
+
+@app.get("/courses/{course_id}", response_model=CourseRead)
+async def read_course(course_id: str):
+    query = courses.select().where(courses.c.course_id == course_id)
+    course = await database.fetch_one(query)
+    if course is None:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return course
+
+@app.put("/courses/{course_id}", response_model=CourseRead)
+async def update_course(course_id: str, course: CourseCreate, user_id: int = Depends(get_current_user_id)):
+    query = courses.update().where(courses.c.course_id == course_id).values(
+        course_name=course.course_name,
+        course_description=course.course_description,
+        course_lead=user_id
+    )
+    await database.execute(query)
+    return {**course.dict(), "id": course_id, "course_lead": user_id}
+
+@app.delete("/courses/{course_id}")
+async def delete_course(course_id: str):
+    query = courses.delete().where(courses.c.course_id == course_id)
+    await database.execute(query)
+    return {"detail": "Course deleted"}
+
+@app.post("/chat")
+async def chat(course_id: str, question: str):
+    query = documents.select().where(documents.c.course_id == course_id)
+    docs = await database.fetch_all(query)
+
+    if not docs:
+        raise HTTPException(status_code=404, detail="No documents found for the specified course")
+
+    # Retrieve the embeddings from Milvus and generate a response
+    local_embedding_model = "all-MiniLM-L6-v2"
+    embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
+    
+    vector_db = Milvus(
+        collection_name="documents",
+        connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
+    )
+    
+    relevant_docs = vector_db.similarity_search(question, k=5)
+    
+    response = "Based on your question, here are some insights from the documents:\n"
+    for doc in relevant_docs:
+        response += f"- {doc.page_content}\n"
+    
+    return {"response": response}
