@@ -2,7 +2,8 @@ import os
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, ForeignKey, DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID
 from databases import Database
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
@@ -27,7 +28,7 @@ from langchain_community.llms import LlamaCpp
 from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
 from langchain_core.prompts import PromptTemplate
 from fastapi.responses import StreamingResponse
-
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +57,7 @@ except Exception as e:
 MINIO_ADDRESS = os.getenv('MINIO_ADDRESS', "minio:9000")
 MINIO_ACCESS_KEY = os.getenv('MINIO_ROOT_USER', "minioadmin")
 MINIO_SECRET_KEY = os.getenv('MINIO_ROOT_PASSWORD', "minioadmin")
+OLLAMA_ENDPOINT = os.getenv('OLLAMA_ENDPOINT', "http://host.docker.internal:11434/api/generate")
 
 SECRET_KEY = os.getenv('SECRET_KEY', "secret")
 ALGORITHM = "HS256"
@@ -141,8 +143,34 @@ class ChatRequest(BaseModel):
     course_id: str
     question: str
 
+class ChatSessionCreate(BaseModel):
+    course_id: str
+    email: Optional[EmailStr] = None
+    name: Optional[str] = None
 
-from sqlalchemy import Table, Column, Integer, String, ForeignKey
+class ChatSessionRead(BaseModel):
+    id: uuid.UUID
+    created_date: datetime
+    email: Optional[EmailStr] = None
+    name: Optional[str] = None
+    course_id: str
+    chat_heading: Optional[str] = None
+
+class ChatMessageCreate(BaseModel):
+    chat_session_id: uuid.UUID
+    message: str
+    message_sender: str
+
+class ChatMessageRead(BaseModel):
+    id: int
+    chat_session_id: uuid.UUID
+    message: str
+    message_sender: str
+    created_date: datetime
+
+class SetChatSessionHeading(BaseModel):
+    chat_session_id: uuid.UUID
+    chat_heading: str
 
 users = Table(
     "users",
@@ -171,6 +199,27 @@ courses = Table(
     Column("course_name", String),
     Column("course_description", String),
     Column("course_lead", Integer, ForeignKey("users.id")),
+)
+
+chat_sessions = Table(
+    "chat_sessions",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    Column("created_date", DateTime, default=datetime.utcnow),
+    Column("email", String, nullable=True),
+    Column("name", String, nullable=True),
+    Column("course_id", String, ForeignKey("courses.course_id")),
+    Column("chat_heading", String, nullable=True),
+)
+
+chat_messages = Table(
+    "chat_messages",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("chat_session_id", UUID(as_uuid=True), ForeignKey("chat_sessions.id")),
+    Column("message", Text),
+    Column("message_sender", String, nullable=False),  # Must be 'AI' or 'USER'
+    Column("created_date", DateTime, default=datetime.utcnow),
 )
 
 metadata.create_all(engine)
@@ -267,9 +316,6 @@ async def upload_file(course_id: str, user_id: int = Depends(get_current_user_id
         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT},
     )
     
-    # Store the document record in the database
-    # query = documents.insert().values(document_url=file_location, user_id=user_id, course_id=course_id)
-    # last_record_id = await database.execute(query)
     return {"message": "Course Content Updated", "course_id": course_id}
 
 @app.post("/courses", response_model=CourseRead)
@@ -318,89 +364,41 @@ async def delete_course(course_id: str):
     await database.execute(query)
     return {"detail": "Course deleted"}
 
-# @app.post("/chat")
-# async def chat(course_id: str, question: str):
-#     # Retrieve documents related to the course_id
-#     # query = documents.select().where(documents.c.course_id == course_id)
-#     # docs = await database.fetch_all(query)
+@app.post("/chat_sessions", response_model=ChatSessionRead)
+async def create_chat_session(chat_session: ChatSessionCreate):
+    chat_session_id = uuid.uuid4()
+    query = chat_sessions.insert().values(
+        id=chat_session_id,
+        email=chat_session.email,
+        name=chat_session.name,
+        course_id=chat_session.course_id,
+        created_date=datetime.utcnow()  # Ensure created_date is set explicitly
+    ).returning(chat_sessions.c.id, chat_sessions.c.created_date, chat_sessions.c.email, chat_sessions.c.name, chat_sessions.c.course_id, chat_sessions.c.chat_heading)
+    row = await database.fetch_one(query)
+    return row
 
-#     # if not docs:
-#     #     raise HTTPException(status_code=404, detail="No documents found for the specified course")
+@app.put("/chat_sessions/{chat_session_id}/heading", response_model=ChatSessionRead)
+async def set_chat_session_heading(chat_session_id: uuid.UUID, heading: SetChatSessionHeading):
+    query = chat_sessions.update().where(chat_sessions.c.id == chat_session_id).values(chat_heading=heading.chat_heading).returning(
+        chat_sessions.c.id, chat_sessions.c.created_date, chat_sessions.c.email, chat_sessions.c.name, chat_sessions.c.course_id, chat_sessions.c.chat_heading)
+    row = await database.fetch_one(query)
+    if not row:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    return row
 
-#     # Retrieve the embeddings from Milvus and generate a response
-#     local_embedding_model = "all-MiniLM-L6-v2"
-#     embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
-    
-#     vector_db = Milvus(
-#         embeddings,
-#         collection_name="documents",
-#         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
-#     )
-
-#     template = """Question: {question}
-#     Answer: Let's work this out in a step by step way to be sure we have the right answer"""
-#     prompt = PromptTemplate.from_template(template)
-#     callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
-
-#     local_path = (
-#         "gpt4all-falcon-newbpe-q4_0.gguf" 
-#     )
-
-#     llm = LlamaCpp(
-#         model_path=local_path,
-#         temperature=0.75,
-#         max_tokens=2000,
-#         top_p=1,
-#         n_ctx=4096,
-#         callback_manager=callback_manager,
-#         verbose=True,
-#     )
-    
-#     relevant_docs = vector_db.similarity_search(question, k=5)
-    
-#     # Assuming the response is generated from the relevant docs (you can replace this with actual generation logic)
-#     response = ""
-#     for doc in relevant_docs:
-#         response += f"- {doc.page_content}\n"        
-
-#     prompt_template = """Use the following pieces of context to answer the question at the end. If you don't find the answer in tne context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context.
-
-#     {response}
-
-#     Question: {question}
-#     Helpful Answer:"""
-#     QA_CHAIN_PROMPT = PromptTemplate(
-#         template=prompt_template, input_variables=["context", "question"]
-#     )
-
-#     # chain_type_kwargs={
-#     #         "refine_prompt": QA_CHAIN_PROMPT
-#     #         }
-
-#     qa_chain = RetrievalQA.from_chain_type(
-#         llm,
-#         chain_type="refine",
-#         retriever=vector_db.as_retriever(search_type="mmr", search_kwargs={"k": 1}),
-#         return_source_documents=False,
-#         callbacks=None,
-#         chain_type_kwargs={"refine_prompt": QA_CHAIN_PROMPT,"verbose":True},
-#         verbose=True
-#     )
-#     result = qa_chain({"query": question}) # shall be query
-#     return result["result"]
-
-
-async def stream_ollama_model(question: str, context: str) -> AsyncGenerator[str, None]:
-    url = "http://host.docker.internal:11434/api/generate"
+async def stream_and_save_ollama_model(question: str, context: str, chat_session_id: uuid.UUID) -> AsyncGenerator[str, None]:
+    url = OLLAMA_ENDPOINT
     payload = {
         "model": "llama3",
-        "prompt": f"Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context. Answer as if you are a teching assistant, be kind and follow all teaching principles. Try and answer the sudents kindly and gently.\n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
-        "stream": False
+        "prompt": f"Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context. Answer as if you are a teaching assistant, be kind and follow all teaching principles. Try and answer the students kindly and gently.\n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
+        "stream": True
     }
 
     headers = {
         "Content-Type": "application/json"
     }
+
+    response_chunks = []
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0)) as client:
         try:
@@ -410,7 +408,20 @@ async def stream_ollama_model(question: str, context: str) -> AsyncGenerator[str
                     logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
                     raise HTTPException(status_code=response.status_code, detail=detail)
                 async for chunk in response.aiter_text():
-                    yield chunk
+                    chunk_data = json.loads(chunk)
+                    if 'response' in chunk_data:
+                        response_chunks.append(chunk_data['response'])
+                        yield chunk
+
+            ai_response = ''.join(response_chunks)
+            ai_message_query = chat_messages.insert().values(
+                chat_session_id=chat_session_id,
+                message=ai_response,
+                message_sender='AI',
+                created_date=datetime.utcnow()
+            )
+            await database.execute(ai_message_query)
+
         except httpx.ConnectError as e:
             logger.error(f"Connection error: {e}")
             raise HTTPException(status_code=502, detail="Failed to connect to the Ollama server.")
@@ -419,11 +430,18 @@ async def stream_ollama_model(question: str, context: str) -> AsyncGenerator[str
             raise HTTPException(status_code=504, detail="Read timeout from the Ollama server.")
 
 @app.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     course_id = request.course_id
     question = request.question
 
-    # Retrieve the embeddings from Milvus and generate a response
+    user_message_query = chat_messages.insert().values(
+        chat_session_id=chat_session_id,
+        message=question,
+        message_sender='USER',
+        created_date=datetime.utcnow()
+    )
+    await database.execute(user_message_query)
+
     local_embedding_model = "all-MiniLM-L6-v2"
     embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
     
@@ -435,9 +453,8 @@ async def chat(request: ChatRequest):
 
     relevant_docs = vector_db.similarity_search(question, k=5, filter={"course_id": course_id})
     
-    # Combine the content of relevant documents into a single context string
     context = ""
     for doc in relevant_docs:
         context += f"- {doc.page_content}\n"
 
-    return StreamingResponse(stream_ollama_model(question, context), media_type="text/plain")
+    return StreamingResponse(stream_and_save_ollama_model(question, context, chat_session_id), media_type="text/plain")
