@@ -377,6 +377,12 @@ async def create_chat_session(chat_session: ChatSessionCreate):
     row = await database.fetch_one(query)
     return row
 
+@app.get("/chat_sessions/{chat_session_id}/messages", response_model=List[ChatMessageRead])
+async def get_chat_messages(chat_session_id: uuid.UUID):
+    query = chat_messages.select().where(chat_messages.c.chat_session_id == chat_session_id).order_by(chat_messages.c.created_date)
+    messages = await database.fetch_all(query)
+    return messages
+
 @app.put("/chat_sessions/{chat_session_id}/heading", response_model=ChatSessionRead)
 async def set_chat_session_heading(chat_session_id: uuid.UUID, heading: SetChatSessionHeading):
     query = chat_sessions.update().where(chat_sessions.c.id == chat_session_id).values(chat_heading=heading.chat_heading).returning(
@@ -385,6 +391,12 @@ async def set_chat_session_heading(chat_session_id: uuid.UUID, heading: SetChatS
     if not row:
         raise HTTPException(status_code=404, detail="Chat session not found")
     return row
+
+@app.get("/chat_sessions/by_email/{email}", response_model=List[ChatSessionRead])
+async def get_chat_sessions_by_email(email: EmailStr):
+    query = chat_sessions.select().where(chat_sessions.c.email == email).order_by(chat_sessions.c.created_date)
+    sessions = await database.fetch_all(query)
+    return sessions
 
 async def stream_and_save_ollama_model(question: str, context: str, chat_session_id: uuid.UUID) -> AsyncGenerator[str, None]:
     url = OLLAMA_ENDPOINT
