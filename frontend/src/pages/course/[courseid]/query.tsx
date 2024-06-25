@@ -243,7 +243,7 @@ const CourseChat = () => {
     >
       <Meta
         title={`${AppConfig.title} - ${AppConfig.description}`}
-        description={currentcourses !== null ? `${currentcourses?.course_id} - ${currentcourses?.course_name}` : courseid ? courseid.toUpperCase() : ''}
+        description={currentcourses !== null ? `${currentcourses?.course_id} - ${currentcourses?.course_name}` : ''}
       />
 
       <nav className="pb-6 min-w-72 max-w-96 w-1/3 pt-6 h-full max-h-full flex flex-col animate-on-load">
