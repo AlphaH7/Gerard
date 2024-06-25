@@ -76,7 +76,7 @@ const CourseChat = () => {
         method: 'post',
         url: 'https://31c6-130-159-237-150.ngrok-free.app/chat?chat_session_id=4a8f964f-b4c6-45eb-b958-7b9b39ed6bcc',
         data: {
-          course_id: 'BIORX12',
+          course_id: courseid.toUpperCase(),
           question: payload,
         },
         responseType: 'stream', // Receive the response as text
