@@ -245,7 +245,7 @@ const CourseChat = () => {
                       key={data}
                       className="flex animate-from-bottom"
                     >
-                      <p className="rounded-2xl max-w-[80%] text-xs my-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-slate-800 bg-gray-100">
+                      <p className="rounded-2xl max-w-[80%] text-xs my-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-slate-900 bg-gray-100">
                         {data.message.split('\n').map((line, index) => (
                           <React.Fragment key={index}>
                             {line}
