@@ -30,6 +30,11 @@ If all services run well and are up you must see the following on docker desktop
 
 ![image](https://github.com/AlphaH7/Gerard/assets/22297072/d5d49b78-73b2-4b47-894e-fba60ccac647)
 
+## Application Preview - 
+
+<img width="1800" alt="image" src="https://github.com/AlphaH7/Gerard/assets/22297072/b436a71d-2bbe-43fa-aa42-1ad8bc5c861a">
+
+
 
 ## File Heirarchy
 

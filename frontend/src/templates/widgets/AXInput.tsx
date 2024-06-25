@@ -23,7 +23,10 @@ const AXInput = (props: IMUAInpurProps) => {
         {props.label}
       </label>
       {props.textarea ? (
-        <textarea {...props} className={`ax-input ${props.inputCls}`} />
+        <textarea
+          {...props}
+          className={`ax-input dark:bg-slate-950 dark:text-white ax-main-shadow-style ${props.inputCls}`}
+        />
       ) : (
         <input
           {...props}
@@ -33,7 +36,7 @@ const AXInput = (props: IMUAInpurProps) => {
           {...(props.maxDate
             ? { max: new Date().toISOString().split('T')[0] }
             : {})}
-          className={`ax-input ${props.inputCls}`}
+          className={`ax-input dark:bg-slate-950 dark:text-white ax-main-shadow-style ${props.inputCls}`}
         />
       )}
     </div>
