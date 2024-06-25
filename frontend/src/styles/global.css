@@ -374,6 +374,13 @@ label{
   background-size: 40px 40px;
 }
 
+.dark{
+  &.ax-canvas-bg{
+    background-image: radial-gradient(white 1px, #1e293b 0);
+    background-size: 40px 40px;
+  }
+}
+
 /* Table Styles */
 
 .ag-root-wrapper{

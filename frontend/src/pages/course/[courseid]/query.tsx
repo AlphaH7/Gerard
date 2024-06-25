@@ -12,7 +12,7 @@ import { MdError } from 'react-icons/md';
 
 import React from 'react';
 import axios from 'axios';
-import { chat, getCurrentCourse, getcourses } from '@/utils/ApiHelper';
+import { getCurrentCourse, getcourses } from '@/utils/ApiHelper';
 
 interface IChatElem {
   message: string;
@@ -35,43 +35,51 @@ const CourseChat = () => {
   const [query, setQuery] = useState<string>('');
   const [showLoader, setshowLoader] = useState<boolean>(false);
   const [showError, setshowError] = useState<boolean>(false);
-  const [courses, setCourses] = useState<ICourse[]>([]);
-  const [currentcourses, setcurrentCourses] = useState<ICourse | null>(null);
+  const [courses, setCourses] = useState<ICourse[]>([])
+  const [currentcourses, setcurrentCourses] = useState<ICourse|null>(null)
+  const [ darkMode, setDarkMode ] = useState<boolean>(false);
+
 
   const getActiveCourses = async () => {
     try {
       const response = await getcourses();
       console.log('response - ', response);
-      setCourses(response);
+      setCourses(response)
     } catch (apierror: any) {
       console.log('apierrpr - ', apierror);
     }
-  };
+  }
 
-  useEffect(() => {
-    getActiveCourses();
-  }, []);
+  useEffect(()=>{
+    getActiveCourses()
+  }, [])
 
-  const getCurrentCourseDetails = async (z: { courseId: string }) => {
+  const getCurrentCourseDetails = async (z:{courseId: string}) => {
     try {
       const response = await getCurrentCourse(z);
       console.log('response - ', response);
-      setcurrentCourses(response);
+      setcurrentCourses(response)
     } catch (apierror: any) {
       console.log('apierrpr - ', apierror);
     }
-  };
+  }
 
-  useEffect(() => {
-    if (courseid) getCurrentCourseDetails({ courseId: courseid.toUpperCase() });
-  }, [courseid]);
+
+  useEffect(()=>{
+    if(courseid) getCurrentCourseDetails({courseId: courseid.toUpperCase()})
+  }, [courseid])
 
   const handleStream = async (payload: any) => {
     setshowLoader(true);
     try {
-      const response = await chat({
-        course_id: courseid.toUpperCase(),
-        question: payload,
+      const response = await axios({
+        method: 'post',
+        url: 'https://31c6-130-159-237-150.ngrok-free.app/chat?chat_session_id=4a8f964f-b4c6-45eb-b958-7b9b39ed6bcc',
+        data: {
+          course_id: 'BIORX12',
+          question: payload,
+        },
+        responseType: 'stream', // Receive the response as text
       });
 
       const lines = response.data.trim().split('\n');
@@ -144,22 +152,22 @@ const CourseChat = () => {
   };
 
   return (
-    <div className="size-full min-h-screen flex flex-col md:flex-row ax-canvas-bg text-black antialiased">
+    <div className={`size-full ${darkMode ? 'dark' : ''} cursor-pointer min-h-screen flex flex-col md:flex-row ax-canvas-bg text-black antialiased`}>
       <Meta
         title={`${AppConfig.title} - ${AppConfig.description}`}
         description="Login to your Account"
       />
 
-      <nav className="min-w-72 max-w-96 w-1/3 pt-6 h-full max-h-full flex flex-col animate-on-load">
+      <nav className="min-w-72 max-w-96 w-1/3 pt-6 h-full max-h-full flex flex-col animate-on-load" onClick={()=>{setDarkMode(!darkMode)}}>
         <div className="px-6">
-          <div className="bg-white p-2 mb-6 rounded-lg ax-main-shadow-style w-full max-w-md ">
+          <div className="bg-white dark:bg-slate-900 p-2 mb-6 rounded-lg ax-main-shadow-style w-full max-w-md ">
             <Logo />
           </div>
         </div>
 
         <div className="w-full h-full pb-6 flex flex-col overflow-auto px-6">
-          <div className="w-full max-w-md mb-6 bg-white rounded-lg ax-main-shadow-style">
-            <h2 className="sticky top-0 bg-white p-4 font-bold">
+          <div className="w-full max-w-md mb-6 bg-white dark:bg-slate-900 dark:text-white rounded-lg ax-main-shadow-style">
+            <h2 className="sticky top-0 bg-white dark:bg-slate-900 p-4 font-bold">
               <span className="font-bold">
                 {courseid && courseid.toUpperCase()}
               </span>{' '}
@@ -169,15 +177,12 @@ const CourseChat = () => {
               {currentcourses?.course_description}
             </p>
             <p className="px-4 mb-4 pt-0 text-xs">
-              <span className="font-bold">Course lead</span> - Prof.{' '}
-              {currentcourses?.course_lead === 2
-                ? 'Alistier Noel Xver'
-                : 'Raju Xver'}
+              <span className="font-bold">Course lead</span> - Prof. {currentcourses?.course_lead === 2 ? 'Alistier Noel Xver' : 'Raju Xver'}
             </p>
           </div>
 
-          <div className="w-full max-w-md mb-6 bg-white rounded-lg ax-main-shadow-style pb-2">
-            <h2 className="sticky top-0 bg-white p-4 pb-0 font-bold">
+          <div className="w-full max-w-md mb-6 bg-white dark:bg-slate-900 dark:text-white  rounded-lg ax-main-shadow-style pb-2">
+            <h2 className="sticky top-0 bg-white dark:bg-slate-900 dark:text-white  p-4 pb-0 font-bold">
               About the last class
             </h2>
             <p className="px-4 my-2 pt-0 text-xs">
@@ -189,32 +194,35 @@ const CourseChat = () => {
             </p>
           </div>
 
-          <div className="mb-6 w-full max-w-md  bg-white rounded-lg ax-main-shadow-style pb-2">
-            <h2 className="sticky top-0 bg-white p-4 pb-0 font-bold">
+          <div className="mb-6 w-full max-w-md  bg-white dark:bg-slate-900 dark:text-white  rounded-lg ax-main-shadow-style pb-2">
+            <h2 className="sticky top-0 bg-white dark:bg-slate-900 dark:text-white  p-4 pb-0 font-bold">
               Courses Available{' '}
             </h2>
-            {courses.map((data: ICourse) => (
-              <p className="px-4 my-2 pt-0 text-xs">
-                <span className="font-bold" key={data.course_id}>
-                  {data.course_id}
-                </span>{' '}
-                - {data.course_name}
-              </p>
-            ))}
+            {
+              courses.map(
+                (data : ICourse) => (
+                  <p className="px-4 my-2 pt-0 text-xs">
+                  <span className="font-bold" key={data.course_id}>{data.course_id}</span> - {data.course_name}
+                </p>
+                )
+              )
+            }
+
           </div>
 
-          <div className="w-full max-w-md h-full bg-white rounded-lg ax-main-shadow-style pb-2">
-            <h2 className="sticky top-0 bg-white p-4 pb-0 font-bold">
+          <div className="w-full max-w-md h-full bg-white dark:bg-slate-900 dark:text-white  rounded-lg ax-main-shadow-style pb-2">
+            <h2 className="sticky top-0 bg-white dark:bg-slate-900 dark:text-white  p-4 pb-0 font-bold">
               Conversations{' '}
             </h2>
-            {courses.map((data: ICourse) => (
-              <p className="px-4 my-2 pt-0 text-xs">
-                <span className="font-bold" key={data.course_id}>
-                  {data.course_id}
-                </span>{' '}
-                - {data.course_name}
-              </p>
-            ))}
+            {
+              courses.map(
+                (data : ICourse) => (
+                  <p className="px-4 my-2 pt-0 text-xs">
+                  <span className="font-bold" key={data.course_id}>{data.course_id}</span> - {data.course_name}
+                </p>
+                )
+              )
+            }
           </div>
         </div>
       </nav>
@@ -226,7 +234,7 @@ const CourseChat = () => {
 
             <div className="w-full max-h-full overflow-auto">
               {chatArr.length === 0 ? (
-                <div>test</div>
+                <div></div>
               ) : (
                 chatArr.map((data: IChatElem, i: number) =>
                   data.author === 'AI' ? (
@@ -237,7 +245,7 @@ const CourseChat = () => {
                       key={data}
                       className="flex animate-from-bottom"
                     >
-                      <p className="rounded-2xl max-w-[80%] text-xs my-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal bg-gray-100">
+                      <p className="rounded-2xl max-w-[80%] text-xs my-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-slate-800 bg-gray-100">
                         {data.message.split('\n').map((line, index) => (
                           <React.Fragment key={index}>
                             {line}
@@ -254,7 +262,7 @@ const CourseChat = () => {
                         ? { ref: lastMessageRef }
                         : {})}
                     >
-                      <p className="rounded-2xl max-w-[80%] bg-black text-xs mt-4 text-left rounded-br-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-black text-white px-4 py-2 font-normal">
+                      <p className="rounded-2xl max-w-[80%] bg-black text-xs mt-4 text-left rounded-br-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-white px-4 py-2 font-normal">
                         {data.message.split('\n').map((line, index) => (
                           <React.Fragment key={index}>
                             {line}
@@ -272,12 +280,12 @@ const CourseChat = () => {
             {showLoader && (
               <img
                 src="/assets/images/loader.svg"
-                className="h-6 w-16 object-cover animate-from-bottom"
+                className="h-6 w-16 dark:invert object-cover animate-from-bottom"
                 alt="Loader"
               />
             )}
             {showError && (
-              <div className="text-xs font-bold w-full flex items-center animate-from-bottom">
+              <div className="text-xs dark:text-white  font-bold w-full flex items-center animate-from-bottom">
                 <MdError className="size-8 mr-2" />
 
                 <div>
@@ -286,7 +294,7 @@ const CourseChat = () => {
                 </div>
               </div>
             )}
-            <div className=" text-right text-xs font-bold w-full">
+            <div className=" dark:text-white  text-right text-xs font-bold w-full">
               Welcome, Alistier X.
             </div>
           </div>
@@ -317,10 +325,10 @@ const CourseChat = () => {
               onChange={(e: FormEvent) => {
                 setQuery(e.target.value);
               }}
-              className="w-full mt-2 ax-input border-[1px] rounded-lg border-gray-100  ax-main-shadow-style"
+              className="dark:bg-slate-950 dark:text-white w-full mt-2 ax-input border-[1px] rounded-lg border-gray-100  ax-main-shadow-style"
               placeholder="Enter a course related question or query to start a discussion"
             />
-            <button type="submit" className="absolute right-8 top-4">
+            <button type="submit" className="dark:text-white absolute right-8 top-4">
               <RiSendPlaneFill title="Send Message" className="size-6" />
             </button>
           </form>
