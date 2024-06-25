@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@200;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;500;600;700&display=swap');
 @import url("https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.6.0/slick.min.css");
 @import url('https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.6.0/slick-theme.min.css');
 @import url("https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css");
@@ -12,13 +12,17 @@
   }
 }
 
+html, body, #__next{
+  height: 100%;
+  width: 100%;
+}
 
 .web-head{
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Montserrat', sans-serif;
 }
 
 body, .ag-header-cell-text, body > *, text, .ag-cell{
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Montserrat', sans-serif;
 }
 
 button, div, p, a, li, body{
@@ -26,28 +30,28 @@ button, div, p, a, li, body{
 }
 
 font-w-thin{
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 200;
 }
 
 font-w-light{
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 300;
 }
 
 font-w-regular{
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 400;
 }
 
 
 font-w-medium{
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 500;
 }
 
 font-w-bold{
-  font-family: 'Roboto', sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-weight: 700;
 }
 
@@ -109,7 +113,7 @@ button:disabled{
   0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
-.ax-head-style{
+.ax-main-shadow-style{
   box-shadow: 0 5px 7px rgba(0, 0, 0, 0.09), 0 8px 43px rgba(0, 0, 0, 0.09), 0 2px 6px rgba(0, 0, 0, 0.08)
 }
 
@@ -266,12 +270,13 @@ div.no-animation * {
 
 .ax-input{
   width: 100%;
-  border: 1px solid #777;
+  /* border: 1px solid #777; */
   padding: 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.8rem;
   color: #000;
   height: 2.8rem;
+  transition: all 0.5s;
 }
 
 label{
@@ -296,7 +301,7 @@ label{
 
 .ax-input:focus {
   outline: none; 
-  border: 1px solid #111;
+  border: 1px solid #e6e6e6;
   /* box-shadow: 0 0 5px #111; */
 }
 
@@ -364,6 +369,10 @@ label{
   font-size: 1rem;
 }
 
+.ax-canvas-bg{
+  background-image: radial-gradient(black 1px, transparent 0);
+  background-size: 40px 40px;
+}
 
 /* Table Styles */
 

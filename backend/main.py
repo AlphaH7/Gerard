@@ -44,6 +44,8 @@ engine = create_engine(DATABASE_URL)
 # Milvus Configuration
 MILVUS_HOST = os.getenv('MILVUS_HOST', "milvus")
 MILVUS_PORT = os.getenv('MILVUS_PORT', "19530")
+local_embedding_model = "all-MiniLM-L6-v2"
+
 
 logger.info(f"Connecting to Milvus at {MILVUS_HOST}:{MILVUS_PORT}")
 try:
@@ -75,7 +77,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -288,7 +290,7 @@ async def upload_file(course_id: str, user_id: int = Depends(get_current_user_id
         secret_key=MINIO_SECRET_KEY,
         secure=False
     )
-    bucket_name = "documents"
+    bucket_name = course_id.lower()
     if not minio_client.bucket_exists(bucket_name):
         minio_client.make_bucket(bucket_name)
     file_location = f"{bucket_name}/documents_uploaded/{file.filename}"
@@ -312,7 +314,7 @@ async def upload_file(course_id: str, user_id: int = Depends(get_current_user_id
     vector_db = Milvus.from_documents(
         docs,
         embeddings,
-        collection_name="documents",
+        collection_name=course_id.lower(),
         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT},
     )
     
@@ -412,7 +414,9 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
 
     response_chunks = []
 
-    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0)) as client:
+    timeout = httpx.Timeout(3600.0, read=3600.0, connect=3600.0)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             async with client.stream("POST", url, json=payload, headers=headers) as response:
                 if response.status_code != 200:
@@ -420,6 +424,7 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
                     logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
                     raise HTTPException(status_code=response.status_code, detail=detail)
                 async for chunk in response.aiter_text():
+                    logger.info(f"Received chunk: {chunk}")
                     chunk_data = json.loads(chunk)
                     if 'response' in chunk_data:
                         response_chunks.append(chunk_data['response'])
@@ -440,12 +445,16 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
         except httpx.ReadTimeout as e:
             logger.error(f"Read timeout error: {e}")
             raise HTTPException(status_code=504, detail="Read timeout from the Ollama server.")
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.post("/chat")
 async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     course_id = request.course_id
     question = request.question
 
+    # Insert user message into the database (mocked)
     user_message_query = chat_messages.insert().values(
         chat_session_id=chat_session_id,
         message=question,
@@ -454,19 +463,23 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     )
     await database.execute(user_message_query)
 
-    local_embedding_model = "all-MiniLM-L6-v2"
+    # Initialize embeddings and Milvus connection
     embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
-    
     vector_db = Milvus(
         embeddings,
-        collection_name="documents",
+        collection_name=course_id.lower(),
         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
     )
 
-    relevant_docs = vector_db.similarity_search(question, k=5, filter={"course_id": course_id})
+    # Perform similarity search with filter on course_id
+    relevant_docs = vector_db.similarity_search(question, k=5)
+
+    print(relevant_docs)
     
+    # Prepare context for response
     context = ""
     for doc in relevant_docs:
         context += f"- {doc.page_content}\n"
 
+    # Return a streaming response
     return StreamingResponse(stream_and_save_ollama_model(question, context, chat_session_id), media_type="text/plain")

@@ -2,8 +2,8 @@
   "name": "gerard-frontend",
   "version": "0.1.0",
   "scripts": {
-    "dev": "next dev",
-    "dev-secure": "next dev --experimental-https",
+    "dev": "PORT=7776 next dev",
+    "dev-secure": "PORT=7776 next dev --experimental-https",
     "build": "next build",
     "start": "PORT=7777 next start",
     "build-stats": "cross-env ANALYZE=true npm run build",

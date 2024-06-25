@@ -16,7 +16,7 @@ type IMUAInpurProps = {
   maxDate?: boolean;
 };
 
-const Input = (props: IMUAInpurProps) => {
+const AXInput = (props: IMUAInpurProps) => {
   return (
     <div className="input-group relative">
       <label className="absolute -top-2 left-1 bg-white px-1 text-xs">
@@ -40,4 +40,4 @@ const Input = (props: IMUAInpurProps) => {
   );
 };
 
-export default React.memo(Input);
+export default React.memo(AXInput);

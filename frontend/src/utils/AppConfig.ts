@@ -1,6 +1,7 @@
 export const AppConfig = {
   site_name: 'Gerard',
   title: 'Gerard',
-  description: 'Amazing things are on their way',
+  release: 'Alpha',
+  description: 'Artificial Intelligence for Education',
   locale: 'en',
 };
