@@ -1,6 +1,6 @@
 # Gerard - A Retrieval Augmented Generation based Education tool to answer questions based on course related materials
 
-This application is enclosed by Kubernetes & Docker. Currently has 2 containers - Frontend & Backend (will scale as required)
+A Retrieval Augmented Generator based Education tool, that has a role based login and has file upload support to a vector db. This application also has a support for chat that retrieves and uses data off the files uploaded. Backend support is via fast api (python) and has a frontend face of React JS (Next JS - typescript).
 
 ## Tech used - 
 
