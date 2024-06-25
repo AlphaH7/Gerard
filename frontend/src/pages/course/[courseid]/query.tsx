@@ -152,14 +152,14 @@ const CourseChat = () => {
   };
 
   return (
-    <div className={`size-full ${darkMode ? 'dark' : ''} cursor-pointer min-h-screen flex flex-col md:flex-row ax-canvas-bg text-black antialiased`}>
+    <div className={`size-full ${darkMode ? 'dark' : ''} min-h-screen flex flex-col md:flex-row ax-canvas-bg text-black antialiased`}>
       <Meta
         title={`${AppConfig.title} - ${AppConfig.description}`}
         description="Login to your Account"
       />
 
       <nav className="min-w-72 max-w-96 w-1/3 pt-6 h-full max-h-full flex flex-col animate-on-load" onClick={()=>{setDarkMode(!darkMode)}}>
-        <div className="px-6">
+        <div className="px-6 cursor-pointer">
           <div className="bg-white dark:bg-slate-900 p-2 mb-6 rounded-lg ax-main-shadow-style w-full max-w-md ">
             <Logo />
           </div>
