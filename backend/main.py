@@ -68,7 +68,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-app = FastAPI()
+app = FastAPI(root_path="/backend/apis")
+
+@app.get("/openapi.json")
+async def get_openapi():
+    return app.openapi()
 
 origins = [
     "http://localhost:3000",
