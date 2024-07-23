@@ -11,13 +11,13 @@ COPY package*.json ./
 RUN npm install
 
 # Copy the application files
-COPY . .
+# COPY . .
 
 # Build the application
-RUN npm run build
+# RUN npm run build
 
 # format the application
-RUN npm run format
+# RUN npm run format
 
 # Expose the port the app runs on
 EXPOSE 7777

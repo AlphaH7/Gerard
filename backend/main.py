@@ -408,7 +408,7 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
     url = OLLAMA_ENDPOINT
     payload = {
         "model": "llama3",
-        "prompt": f"You are a teaching assistant and your name is Gerard. Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context. Be kind and follow all teaching principles. Always answer gently and in an encouraging way. Use the word Course instead of context in your responsey.\n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
+        "prompt": f"You are a teaching assistant. Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context. Be kind and follow all teaching principles. Always answer gently and in an encouraging way. Use the word Course instead of context in your responsey.\n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
         "stream": True
     }
 
@@ -476,7 +476,7 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     )
 
     # Perform similarity search with filter on course_id
-    relevant_docs = vector_db.similarity_search(question, k=5)
+    relevant_docs = vector_db.similarity_search(question, k=25)
 
     print(relevant_docs)
     

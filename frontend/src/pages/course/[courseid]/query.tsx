@@ -92,7 +92,7 @@ const CourseChat = () => {
     setshowLoader(true);
   
     try {
-      const response = await fetch(`https://saved-proper-scorpion.ngrok-free.app/chat?chat_session_id=${currentChatId}`, {
+      const response = await fetch(`http://local.dev.server:6789/backend/apis/chat?chat_session_id=${currentChatId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,41 +238,38 @@ const CourseChat = () => {
     <div
       key={courseid}
       className={`size-full ${
-        darkMode ? 'dark' : ''
-      } min-h-screen flex flex-row ax-canvas-bg text-black antialiased`}
+        'dark'
+        // darkMode ? 'dark' : ''
+      } min-h-screen flex flex-col ax-canvas-bg text-black antialiased`}
     >
       <Meta
         title={`${AppConfig.title} - ${AppConfig.description}`}
         description={currentcourses !== null ? `${currentcourses?.course_id} - ${currentcourses?.course_name}` : ''}
       />
 
-      <nav className="pb-6 min-w-72 max-w-96 w-1/3 pt-6 h-full max-h-full flex flex-col animate-on-load">
+      <nav className=" bg-default-primary50 px-4 dark:bg-slate-950   w-full  flex items-center justify-between animate-on-load">
         <div
           onClick={() => {
             setDarkMode(!darkMode);
           }}
           className="px-6 cursor-pointer"
         >
-          <div className="bg-white dark:bg-slate-900 p-2 mb-6 rounded-lg ax-main-shadow-style w-full max-w-md ">
+          <div className="h-full rounded-lg ax-main-shadow-style w-full max-w-md ">
             <Logo />
           </div>
         </div>
 
-        <div
-          className={`w-full h-full flex flex-col overflow-auto px-6 pb-6 ${
-            viewState === '1' ? 'blur-sm' : ''
-          }`}
-        >
-          <div className="w-full max-w-md mb-6 bg-white dark:bg-slate-900 dark:text-white rounded-lg ax-main-shadow-style">
-            <h2 className="sticky top-0 bg-white dark:bg-slate-900 p-4 font-bold">
+
+          <div className="w-full text-right grow rounded-lg dark:text-white  ax-main-shadow-style">
+            <h2 className="rounded-lg p-4 font-bold">
               <span className="font-bold">
                 {courseid && courseid.toUpperCase()}
               </span>{' '}
               - {currentcourses?.course_name}
             </h2>
-            <p className="p-4 pt-0 text-xs">
+            {/* <p className=" pt-0 text-xs">
               {currentcourses?.course_description}
-            </p>
+            </p> */}
             <p className="px-4 mb-4 pt-0 text-xs">
               <span className="font-bold">Course lead</span> - Prof.{' '}
               {currentcourses?.course_lead === 2
@@ -281,62 +278,9 @@ const CourseChat = () => {
             </p>
           </div>
 
-          <div className="w-full max-w-md mb-6 bg-white dark:bg-slate-900 dark:text-white  rounded-lg ax-main-shadow-style pb-2">
-            <h2 className="sticky top-0 bg-white dark:bg-slate-900 dark:text-white  p-4 pb-0 font-bold">
-              About the last class
-            </h2>
-            <p className="px-4 my-2 pt-0 text-xs">
-              Last class was about Active learning topics.
-            </p>
-            <p className="px-4 my-2 pt-0 text-xs font-semibold">
-              Course Content has been updated. Feel free to ask questions about
-              the same
-            </p>
-          </div>
-
-          <div className="mb-6 w-full max-w-md flex flex-col bg-white dark:bg-slate-900 dark:text-white  rounded-lg ax-main-shadow-style pb-2">
-            <h2 className="sticky top-0 mb-2 bg-white dark:bg-slate-900 dark:text-white  p-4 pb-0 font-bold">
-              Courses Available{' '}
-            </h2>
-            {courses.map((data: ICourse) => (
-              <Link
-                onClick={() => {
-                  setChatArr([]);
-                  setshowError(false);
-                  setshowLoader(false);
-                  setQuery('');
-                  initChatSession(data.course_id);
-                }}
-                href={`/course/${data.course_id}/query`}
-                className="px-4 mb-2 w-full text-xs"
-              >
-                <span className="font-bold" key={data.course_id}>
-                  {data.course_id}
-                </span>{' '}
-                - {data.course_name}
-              </Link>
-            ))}
-          </div>
-
-          <div className="w-full max-w-md h-full bg-white dark:bg-slate-900 dark:text-white  rounded-lg ax-main-shadow-style pb-2">
-            <h2 className="sticky top-0 bg-white dark:bg-slate-900 dark:text-white  p-4 pb-0 font-bold">
-              Conversations{' '}
-            </h2>
-
-            <p className='px-4 text-xs pt-2 text-gray-600'>You will find your past conversations listed here</p>
-            {/* {courses.map((data: ICourse) => (
-              <p className="px-4 my-2 pt-0 text-xs">
-                <span className="font-bold" key={data.course_id}>
-                  {data.course_id}
-                </span>{' '}
-                - {data.course_name}
-              </p>
-            ))} */}
-          </div>
-        </div>
       </nav>
 
-      <main className="content w-full text-xl flex justify-center h-full overflow-auto">
+      <main className="content w-full text-xl flex justify-center grow overflow-auto">
         {viewState === '1' ? (
           <div className="w-full h-full flex flex-col animate-from-bottom items-center justify-center">
             <form
@@ -345,7 +289,7 @@ const CourseChat = () => {
                 e.preventDefault();
                 initChatSession();
               }}
-              className="flex flex-col max-w-[500px] px-2 w-full bg-white dark:bg-slate-800 dark:text-white"
+              className="flex flex-col max-w-[500px] px-2 w-full bg-white dark:bg-default-primary400 dark:text-white"
             >
               <p className="text-2xl pb-1">Hi there!</p>
               <p className="pb-4 text-base">Let's get to know each other!</p>
@@ -375,14 +319,14 @@ const CourseChat = () => {
               </div>
               <button
                 type="submit"
-                className="w-full bg-black text-white dark:bg-slate-600 ax-main-shadow-style text-xs rounded-sm mt-4 py-2 "
+                className="w-full bg-black text-white py-3 rounded-sm dark:bg-slate-950 ax-main-shadow-style text-xs mt-4"
               >
                 Lets Go!
               </button>
             </form>
           </div>
         ) : (
-          <div className="max-w-[900px] overflow-auto h-full w-full flex flex-col justify-end py-6 pt-16 animate-from-bottom relative">
+          <div className="max-w-[900px] overflow-auto h-full w-full flex flex-col justify-end pb-2 animate-from-bottom relative">
             <div className="h-full overflow-auto px-6 pb-6 flex flex-col justify-end">
               {/* <div className='absolute top-6 right-6 text-base font-bold'>Welcome, Alistier X.</div> */}
 
@@ -399,7 +343,7 @@ const CourseChat = () => {
                         key={data}
                         className="flex animate-from-bottom"
                       >
-                        <p className="rounded-2xl max-w-[80%] text-xs my-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-slate-900 bg-gray-100">
+                        <p className="rounded-2xl max-w-[80%] text-xs my-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-default-primary bg-gray-100">
                           {data.message.split('\n').map((line, index) => (
                             <React.Fragment key={index + data.message}>
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -483,7 +427,7 @@ const CourseChat = () => {
                 onChange={(e: FormEvent) => {
                   setQuery(e.target.value);
                 }}
-                className="dark:bg-slate-950 border-0 dark:text-white w-full mt-2 ax-input border-[1px] rounded-lg border-gray-100  ax-main-shadow-style"
+                className="dark:bg-default-primary450 dark:bg-slate-950 focus:border-0 dark:text-white w-full mt-2 ax-input  rounded-lg ax-main-shadow-style"
                 placeholder="Enter a course related question or query to start a discussion"
               />
               <button

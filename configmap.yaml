@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: gerard-v1
+data:
+  SECRET_KEY: axjwtkey
+  MILVUS_HOST: milvus
+  MILVUS_PORT: "19530"
+  OLLAMA_ENDPOINT: http://host.docker.internal:11434/api/generate

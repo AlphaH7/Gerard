@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nginx-role-binding
+  namespace: gerard-v1
+subjects:
+- kind: ServiceAccount
+  name: nginx-service-account
+  namespace: gerard-v1
+roleRef:
+  kind: Role
+  name: nginx-role
+  apiGroup: rbac.authorization.k8s.io
