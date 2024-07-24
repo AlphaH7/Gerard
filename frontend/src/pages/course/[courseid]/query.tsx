@@ -12,7 +12,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import React from 'react';
 import axios from 'axios';
-import { getCurrentCourse, getcourses, initChat, addrating } from '@/utils/ApiHelper';
+import {
+  getCurrentCourse,
+  getcourses,
+  initChat,
+  addrating,
+} from '@/utils/ApiHelper';
 import Link from 'next/link';
 import AXInput from '@/templates/widgets/AXInput';
 import { generateUUID } from '@/utils/AppHelper';
@@ -257,22 +262,21 @@ const CourseChat = () => {
   const setSelectedStar = async (rating: number, message_uuid: string) => {
     try {
       const response = await addrating({
-        message_uuid, rating
+        message_uuid,
+        rating,
       });
       console.log('response - ', response);
-      const chatArrCp = chatArr
-      chatArrCp.forEach(
-        data => {
-          if(data.message_uuid === message_uuid) {
-            data.rating = rating
-          }
+      const chatArrCp = chatArr;
+      chatArrCp.forEach((data) => {
+        if (data.message_uuid === message_uuid) {
+          data.rating = rating;
         }
-      )
-      setChatArr(chatArrCp)
+      });
+      setChatArr(chatArrCp);
     } catch (apierror: any) {
       console.log('apierrpr - ', apierror);
     }
-  }
+  };
 
   return (
     <div
@@ -395,15 +399,33 @@ const CourseChat = () => {
                               type="button"
                               onMouseEnter={() => {
                                 setHoveredStar(starIndex);
-                                setHoveredStarid(data.message_uuid)
+                                setHoveredStarid(data.message_uuid);
                               }}
                               onMouseLeave={() => {
-                                setHoveredStar(null)
-                                setHoveredStarid(null)
+                                setHoveredStar(null);
+                                setHoveredStarid(null);
                               }}
-                              onClick={() => setSelectedStar(starIndex + 1, data.message_uuid)}
+                              onClick={() =>
+                                setSelectedStar(
+                                  starIndex + 1,
+                                  data.message_uuid,
+                                )
+                              }
                             >
-                              <FaStar className={"size-5 mx-1 " +(data.rating ? starIndex < data.rating ? 'text-yellow-500' : ''  : (hoveredStar !== null && starIndex <= hoveredStar && hoveredStarid === data.message_uuid)  ? 'text-yellow-500 opacity-70' : 'grey') }/>
+                              <FaStar
+                                className={
+                                  'size-5 mx-1 ' +
+                                  (data.rating
+                                    ? starIndex < data.rating
+                                      ? 'text-yellow-500'
+                                      : ''
+                                    : hoveredStar !== null &&
+                                      starIndex <= hoveredStar &&
+                                      hoveredStarid === data.message_uuid
+                                    ? 'text-yellow-500 opacity-70'
+                                    : 'grey')
+                                }
+                              />
                             </button>
                           ))}
                         </div>

@@ -518,10 +518,14 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
                     raise HTTPException(status_code=response.status_code, detail=detail)
                 async for chunk in response.aiter_text():
                     logger.info(f"Received chunk: {chunk}")
-                    chunk_data = json.loads(chunk)
-                    if 'response' in chunk_data:
-                        response_chunks.append(chunk_data['response'])
-                        yield chunk
+                    try:
+                        chunk_data = json.loads(chunk)
+                        if 'response' in chunk_data:
+                            response_chunks.append(chunk_data['response'])
+                            yield chunk
+                    except json.JSONDecodeError as e:
+                        logger.error(f"JSON decode error: {e} - Chunk: {chunk}")
+                        continue  # Skip malformed chunks
 
             ai_response = ''.join(response_chunks)
             ai_message_query = chat_messages.insert().values(
@@ -547,6 +551,7 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
 async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     course_id = request.course_id
     question = request.question
+    msguuid = request.message_uuid
 
     # Insert user message into the database (mocked)
     user_message_query = chat_messages.insert().values(
@@ -554,7 +559,7 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
         message=question,
         message_sender='USER',
         created_date=datetime.utcnow(),
-        message_uuid=request.message_uuid
+        message_uuid=msguuid
     )
     await database.execute(user_message_query)
 
@@ -577,7 +582,7 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
         context += f"- {doc.page_content}\n"
 
     # Return a streaming response
-    return StreamingResponse(stream_and_save_ollama_model(question, context, chat_session_id, request.message_uuid), media_type="text/plain")
+    return StreamingResponse(stream_and_save_ollama_model(question, context, chat_session_id, msguuid), media_type="text/plain")
 
 
 async def stream_and_save_ollama_model_garchat(question: str, context: str, chat_session_id: uuid.UUID, message_uuid: str) -> AsyncGenerator[str, None]:
@@ -605,10 +610,14 @@ async def stream_and_save_ollama_model_garchat(question: str, context: str, chat
                     raise HTTPException(status_code=response.status_code, detail=detail)
                 async for chunk in response.aiter_text():
                     logger.info(f"Received chunk: {chunk}")
-                    chunk_data = json.loads(chunk)
-                    if 'response' in chunk_data:
-                        response_chunks.append(chunk_data['response'])
-                        yield chunk
+                    try:
+                        chunk_data = json.loads(chunk)
+                        if 'response' in chunk_data:
+                            response_chunks.append(chunk_data['response'])
+                            yield chunk
+                    except json.JSONDecodeError as e:
+                        logger.error(f"JSON decode error: {e} - Chunk: {chunk}")
+                        continue  # Skip malformed chunks
 
             ai_response = ''.join(response_chunks)
             ai_message_query = chat_messages.insert().values(

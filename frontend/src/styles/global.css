@@ -422,3 +422,13 @@ label{
   width: 2rem;
   margin-top: 1rem;
 }
+
+.highcharts-credits{
+  display: none;
+}
+
+.highcharts-legend{
+  text{
+    color: #fff !important;
+  }
+}

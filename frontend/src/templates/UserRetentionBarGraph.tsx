@@ -1,4 +1,4 @@
-// components/UserEngagementBarGraph.tsx
+// components/UserRetentionBarGraph.tsx
 /* eslint-disable no-plusplus */
 // @ts-nocheck
 
@@ -8,34 +8,37 @@ import React from 'react';
 
 type ChatSession = {
   created_date: string;
-  message: string;
-  // Add other properties if needed
+  email: string;
+  name: string;
+  course_id: string;
+  chat_heading: string | null;
 };
 
-// Dummy data for topics and their query counts
-const topics = [
-  'Introduction',
-  'Data Types',
-  'Control Flow',
-  'Functions',
-  'Modules',
-  'File Handling',
-  'Error Handling',
-  'OOP',
-  'Regular Expressions',
-  'Decorators',
-  'Generators',
-  'Async Programming',
-  'Web Development',
-  'Data Analysis',
-];
+const getSessionCounts = (sessions: ChatSession[]) => {
+  const sessionCounts = sessions.reduce((counts, session) => {
+    counts[session.email] = (counts[session.email] || 0) + 1;
+    return counts;
+  }, {});
 
-const queryCounts = [
-  10, 5, 5, 2, 4, 12, 6, 18, 3, 4, 9, 7, 11, 14,
-];
+  return sessionCounts;
+};
 
-const UserEngagementBarGraph: React.FC = () => {
+const getCountsOfCounts = (sessionCounts) => {
+  const countsOfCounts = {};
+  Object.values(sessionCounts).forEach(count => {
+    countsOfCounts[count] = (countsOfCounts[count] || 0) + 1;
+  });
+
+  return countsOfCounts;
+};
+
+const UserRetentionBarGraph: React.FC = ({sessions}) => {
   const darkMode = true;
+  const sessionCounts = getSessionCounts(sessions);
+  const countsOfCounts = getCountsOfCounts(sessionCounts);
+
+  const sessionCountKeys = Object.keys(countsOfCounts);
+  const countValues = Object.values(countsOfCounts);
 
   const options: Highcharts.Options = {
     chart: {
@@ -46,16 +49,19 @@ const UserEngagementBarGraph: React.FC = () => {
       },
     },
     title: {
-      text: 'Topic-wise Queries Index',
+      text: 'Student Retention Graph',
       align: 'left',
       style: {
         color: darkMode ? '#fff' : '#000',
       },
     },
     xAxis: {
-      categories: topics,
+      categories: sessionCountKeys,
       title: {
-        text: null,
+        text: 'Number of Sessions',
+        style: {
+          color: darkMode ? '#fff' : '#000',
+        },
       },
       labels: {
         style: {
@@ -66,7 +72,7 @@ const UserEngagementBarGraph: React.FC = () => {
     yAxis: {
       min: 0,
       title: {
-        text: 'Number of Queries',
+        text: 'Count of Users',
         align: 'high',
         style: {
           color: darkMode ? '#fff' : '#000',
@@ -98,7 +104,7 @@ const UserEngagementBarGraph: React.FC = () => {
     series: [
       {
         type: 'bar',
-        data: queryCounts,
+        data: countValues,
         color: '#d0f96b',
       },
     ],
@@ -111,4 +117,4 @@ const UserEngagementBarGraph: React.FC = () => {
   );
 };
 
-export default UserEngagementBarGraph;
+export default UserRetentionBarGraph;

@@ -1,4 +1,4 @@
-// components/UserEngagementLineGraph.tsx
+// components/ABTestSessionsGraphs.tsx
 /* eslint-disable no-plusplus */
 // @ts-nocheck
 
@@ -38,22 +38,28 @@ const getDateStrings = (days: number) => {
   return dateStrings;
 };
 
-const UserEngagementLineGraph: React.FC = ({sessions}) => {
+const ABTestSessionsGraphs: React.FC = ({sessions}) => {
   const  darkMode  = true;
 
   const groupByDate : GroupedByDate = sessions.reduce((grouped: GroupedByDate, session: ChatSession) => {
     const date = session.created_date.split("T")[0];
     if (!grouped[date]) {
-      grouped[date] = [];
+      grouped[date] = {GAR: 0, RAG: 0};
+    }else{
+      grouped[date][session.message_sender]++
     }
-    grouped[date].push(session);
+    
     return grouped;
   }, {});
 
-  console.log(groupByDate);
+  console.log('abtestsessions -' ,groupByDate);
 
-  const dailyData = Object.keys(groupByDate).map(
-    data => groupByDate[data].length
+  const gardata = Object.keys(groupByDate).map(
+    data => groupByDate[data].GAR
+  );
+
+  const ragdata = Object.keys(groupByDate).map(
+    data => groupByDate[data].RAG
   );
 
   const options: Highcharts.Options = {
@@ -100,14 +106,14 @@ const UserEngagementLineGraph: React.FC = ({sessions}) => {
     series: [
       {
         type: 'line',
-        name: 'User Sessions',
-        data: dailyData,
+        name: 'GAR Sessions',
+        data: gardata,
         color: '#d0f96b',
       },
       {
         type: 'line',
-        name: 'Cumulative User sessions',
-        data: getCumulativeData(dailyData),
+        name: 'RAG Sessions',
+        data: ragdata,
         color: '#a6a6d0',
       },
     ],
@@ -120,4 +126,4 @@ const UserEngagementLineGraph: React.FC = ({sessions}) => {
   );
 };
 
-export default UserEngagementLineGraph;
+export default ABTestSessionsGraphs;

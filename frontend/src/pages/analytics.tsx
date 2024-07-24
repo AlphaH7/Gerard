@@ -36,6 +36,9 @@ import { IoDocuments } from 'react-icons/io5';
 import { FaChalkboardTeacher } from 'react-icons/fa';
 import UniqueUserLineGraph from '@/templates/UniqueUserLineGraph';
 import UserEngagementLineGraph from '@/templates/UserEngagementLineGraph';
+import ABTestSessionsGraphs from '@/templates/ABTestSessionsGraphs';
+import UserRetentionBarGraph from '@/templates/UserRetentionBarGraph';
+import ABtestPiGraphs from '@/templates/ABtestPiGraphs';
 import AnimatedNumber from '@/templates/widgets/AnimatedNumber';
 import Main from '@/templates/Main';
 import UserTable from '@/templates/widgets/UserTable';
@@ -44,6 +47,15 @@ import { SiProbot } from 'react-icons/si';
 import { BsRobot } from 'react-icons/bs';
 import { TbCategoryFilled } from 'react-icons/tb';
 import { FaBalanceScale } from 'react-icons/fa';
+
+export type ChatSession = {
+  id: string;
+  created_date: string;
+  email: string;
+  name: string;
+  course_id: string;
+  chat_heading: string | null;
+};
 
 const Analytics = () => {
   const [courses, setCourses] = useState<ICourse[]>([]);
@@ -315,15 +327,18 @@ const Analytics = () => {
                     <AnimatedNumber>
                       <span className="text-4xl">
                         {messages.reduce(
-                          (acc, { rating }) =>
-                            rating !== null
+                          (acc, { rating, message_sender }) =>
+                            rating !== null && message_sender === 'USER'
                               ? {
                                   sum: acc.sum + rating,
                                   count: acc.count + 1,
                                 }
                               : acc,
                           { sum: 0, count: 0 },
-                        )}
+                        ).sum /
+                          messages.filter(
+                            (data) => data.message_sender === 'USER',
+                          ).length}
                       </span>
                     </AnimatedNumber>
                   </div>
@@ -332,8 +347,20 @@ const Analytics = () => {
               </div>
             </div>
 
-            <UserEngagementLineGraph />
             <UniqueUserLineGraph />
+
+            <div className=" grid grid-cols-1 gap-4 md:grid-cols-2">
+              <ABtestPiGraphs {...{ sessions: messages, type: 'RAG' }} />
+              <ABtestPiGraphs {...{ sessions: messages, type: 'GAR' }} />
+            </div>
+
+            <ABTestSessionsGraphs {...{ sessions: messages }} />
+
+            <UserRetentionBarGraph {...{ sessions }} />
+            
+            <UserEngagementLineGraph {...{ sessions }} />
+
+
             {/* <div className="mt-6 flex max-h-full flex-col overflow-auto rounded-lg bg-default-primary100 bg-opacity-30  dark:bg-default-primary400">
               {documents.map((data: any) => (
                 <div
