@@ -12,14 +12,18 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import React from 'react';
 import axios from 'axios';
-import { getCurrentCourse, getcourses, initChat } from '@/utils/ApiHelper';
+import { getCurrentCourse, getcourses, initChat, addrating } from '@/utils/ApiHelper';
 import Link from 'next/link';
 import AXInput from '@/templates/widgets/AXInput';
+import { generateUUID } from '@/utils/AppHelper';
+import { FaStar } from 'react-icons/fa6';
 
 interface IChatElem {
   message: string;
   timestamp?: string;
   author: 'AI' | 'USER';
+  message_uuid: string;
+  rating?: number;
 }
 
 interface ICourse {
@@ -44,6 +48,8 @@ const CourseChat = () => {
   const [darkMode, setDarkMode] = useState<boolean>(true);
   const [viewState, setViewState] = useState<'1' | '2'>('1');
   const [currentChatId, setCurrentChatId] = useState<string>('');
+  const [hoveredStar, setHoveredStar] = useState(null);
+  const [hoveredStarid, setHoveredStarid] = useState(null);
 
   const getActiveCourses = async () => {
     try {
@@ -88,55 +94,63 @@ const CourseChat = () => {
     if (courseid) getCurrentCourseDetails({ courseId: courseid.toUpperCase() });
   }, [courseid]);
 
-  const handleStream = async (payload: any) => {
+  const handleStream = async (payload: any, messageUUID: string) => {
     setshowLoader(true);
-  
+    console.log('payload - ', payload);
+    // if(payload.trim() === '')return;
     try {
-      const response = await fetch(`http://local.dev.server:6789/backend/apis/chat?chat_session_id=${currentChatId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
+      const response = await fetch(
+        `http://local.dev.server:6789/backend/apis/chat?chat_session_id=${currentChatId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            course_id: courseid.toUpperCase(),
+            question: payload,
+            message_uuid: messageUUID,
+          }),
         },
-        body: JSON.stringify({
-          course_id: courseid.toUpperCase(),
-          question: payload,
-        }),
-      });
-  
+      );
+
       if (!response.body) {
         throw new Error('ReadableStream not supported in this browser.');
       }
-  
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let done = false;
       let buffer = '';
       let previousText = '';
-  
+
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         buffer += decoder.decode(value, { stream: true });
-  
+
         let lines = buffer.split('\n');
         buffer = lines.pop()!; // Save the incomplete line for the next chunk
-  
+
         lines.forEach((line: string) => {
-          if (line.trim() === '') return;
+          // if (line.trim() === '') return;
           try {
             const json = JSON.parse(line);
             const text = json.response;
-  
+
             // Only append new content that wasn't already in the previous text
             if (!previousText.endsWith(text)) {
               previousText += text;
-  
+
               // Remove duplicated words from the end of the previous text
-              const uniqueText = previousText.split(' ').filter((word, index, arr) => {
-                return word !== arr[index - 1];
-              }).join(' ');
-  
+              const uniqueText = previousText
+                .split(' ')
+                .filter((word, index, arr) => {
+                  return word !== arr[index - 1];
+                })
+                .join(' ');
+
               setChatArr((prev) => {
                 const cpprev = [...prev];
                 if (cpprev[cpprev.length - 1]?.author === 'AI') {
@@ -147,6 +161,7 @@ const CourseChat = () => {
                     message: text,
                     author: 'AI',
                     timeStamp: '',
+                    message_uuid: messageUUID,
                   });
                   return cpprev;
                 }
@@ -157,19 +172,22 @@ const CourseChat = () => {
           }
         });
       }
-  
+
       // Process any remaining buffer content
       if (buffer.trim() !== '') {
         const json = JSON.parse(buffer);
         const text = json.response;
         if (!previousText.endsWith(text)) {
           previousText += text;
-  
+
           // Remove duplicated words from the end of the previous text
-          const uniqueText = previousText.split(' ').filter((word, index, arr) => {
-            return word !== arr[index - 1];
-          }).join(' ');
-  
+          const uniqueText = previousText
+            .split(' ')
+            .filter((word, index, arr) => {
+              return word !== arr[index - 1];
+            })
+            .join(' ');
+
           setChatArr((prev) => {
             const cpprev = [...prev];
             if (cpprev[cpprev.length - 1]?.author === 'AI') {
@@ -186,7 +204,7 @@ const CourseChat = () => {
           });
         }
       }
-  
+
       setshowLoader(false);
     } catch (error) {
       console.error('Error fetching stream:', error);
@@ -194,7 +212,6 @@ const CourseChat = () => {
       setshowLoader(false);
     }
   };
-  
 
   const lastMessageRef = useRef();
 
@@ -217,6 +234,8 @@ const CourseChat = () => {
       e.preventDefault();
       if (query && query.trim() !== '') {
         console.log(query);
+        const messageUUID = generateUUID();
+        console.log('messageUUID - ', messageUUID);
         setChatArr((x) => [
           ...x,
           ...[
@@ -224,15 +243,36 @@ const CourseChat = () => {
               message: query,
               timeStamp: '',
               author: 'USER',
+              message_uuid: messageUUID,
             },
           ],
         ]);
         setQuery('');
         setshowError(false);
-        handleStream(query);
+        handleStream(query, messageUUID);
       }
     }
   };
+
+  const setSelectedStar = async (rating: number, message_uuid: string) => {
+    try {
+      const response = await addrating({
+        message_uuid, rating
+      });
+      console.log('response - ', response);
+      const chatArrCp = chatArr
+      chatArrCp.forEach(
+        data => {
+          if(data.message_uuid === message_uuid) {
+            data.rating = rating
+          }
+        }
+      )
+      setChatArr(chatArrCp)
+    } catch (apierror: any) {
+      console.log('apierrpr - ', apierror);
+    }
+  }
 
   return (
     <div
@@ -240,28 +280,25 @@ const CourseChat = () => {
       className={`size-full ${
         'dark'
         // darkMode ? 'dark' : ''
-      } min-h-screen flex flex-col ax-canvas-bg text-black antialiased`}
+      } min-h-screen flex flex-col ax-graadient-bg text-black antialiased`}
     >
       <Meta
         title={`${AppConfig.title} - ${AppConfig.description}`}
-        description={currentcourses !== null ? `${currentcourses?.course_id} - ${currentcourses?.course_name}` : ''}
+        description={
+          currentcourses !== null
+            ? `${currentcourses?.course_id} - ${currentcourses?.course_name}`
+            : ''
+        }
       />
 
-      <nav className=" bg-default-primary50 px-4 dark:bg-slate-950   w-full  flex items-center justify-between animate-on-load">
-        <div
-          onClick={() => {
-            setDarkMode(!darkMode);
-          }}
-          className="px-6 cursor-pointer"
-        >
-          <div className="h-full rounded-lg ax-main-shadow-style w-full max-w-md ">
+      <nav className=" bg-default-primary50 px-4 dark:bg-slate-950   w-full  flex items-center justify-between animate-from-top">
+        <div className="max-w-[900px] mx-auto w-full flex items-center justify-between">
+          <div className="h-full rounded-lg ax-main-shadow-style">
             <Logo />
           </div>
-        </div>
-
 
           <div className="w-full text-right grow rounded-lg dark:text-white  ax-main-shadow-style">
-            <h2 className="rounded-lg p-4 font-bold">
+            <h2 className="rounded-lg pt-3 px-4 font-bold">
               <span className="font-bold">
                 {courseid && courseid.toUpperCase()}
               </span>{' '}
@@ -270,14 +307,11 @@ const CourseChat = () => {
             {/* <p className=" pt-0 text-xs">
               {currentcourses?.course_description}
             </p> */}
-            <p className="px-4 mb-4 pt-0 text-xs">
-              <span className="font-bold">Course lead</span> - Prof.{' '}
-              {currentcourses?.course_lead === 2
-                ? 'Alistier Noel Xver'
-                : 'Raju Xver'}
+            <p className="px-4 mb-4 pt-2 text-xs">
+              <span className="font-bold">Course lead</span> - Prof. AX
             </p>
           </div>
-
+        </div>
       </nav>
 
       <main className="content w-full text-xl flex justify-center grow overflow-auto">
@@ -289,7 +323,7 @@ const CourseChat = () => {
                 e.preventDefault();
                 initChatSession();
               }}
-              className="flex flex-col max-w-[500px] px-2 w-full bg-white dark:bg-default-primary400 dark:text-white"
+              className="flex flex-col max-w-[500px] px-2 w-full  dark:text-white"
             >
               <p className="text-2xl pb-1">Hi there!</p>
               <p className="pb-4 text-base">Let's get to know each other!</p>
@@ -335,15 +369,12 @@ const CourseChat = () => {
                   <div></div>
                 ) : (
                   chatArr.map((data: IChatElem, i: number) =>
-                    data.author === 'AI' ? (
+                    data.author !== 'USER' ? (
                       <div
-                        {...(chatArr.length - 1 === i
-                          ? { ref: lastMessageRef }
-                          : {})}
                         key={data}
-                        className="flex animate-from-bottom"
+                        className="flex flex-col animate-from-bottom"
                       >
-                        <p className="rounded-2xl max-w-[80%] text-xs my-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-default-primary bg-gray-100">
+                        <p className="rounded-2xl max-w-[80%] text-xs mt-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-default-primary500 bg-gray-100">
                           {data.message.split('\n').map((line, index) => (
                             <React.Fragment key={index + data.message}>
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -353,6 +384,29 @@ const CourseChat = () => {
                             </React.Fragment>
                           ))}
                         </p>
+                        <div
+                          {...(chatArr.length - 1 === i
+                            ? { ref: lastMessageRef }
+                            : {})}
+                          className="flex justify-end max-w-[80%] mb-6 mt-2"
+                        >
+                          {[0, 1, 2, 3, 4].map((starIndex) => (
+                            <button
+                              type="button"
+                              onMouseEnter={() => {
+                                setHoveredStar(starIndex);
+                                setHoveredStarid(data.message_uuid)
+                              }}
+                              onMouseLeave={() => {
+                                setHoveredStar(null)
+                                setHoveredStarid(null)
+                              }}
+                              onClick={() => setSelectedStar(starIndex + 1, data.message_uuid)}
+                            >
+                              <FaStar className={"size-5 mx-1 " +(data.rating ? starIndex < data.rating ? 'text-yellow-500' : ''  : (hoveredStar !== null && starIndex <= hoveredStar && hoveredStarid === data.message_uuid)  ? 'text-yellow-500 opacity-70' : 'grey') }/>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       <div
@@ -405,6 +459,8 @@ const CourseChat = () => {
               className="max-h-[30%] px-6 relative"
               onSubmit={(e: FormEvent) => {
                 e.preventDefault();
+                const messageUUID = generateUUID();
+                console.log('messageUUID - ', messageUUID);
                 setChatArr((x) => [
                   ...x,
                   ...[
@@ -412,12 +468,13 @@ const CourseChat = () => {
                       message: query,
                       timeStamp: '',
                       author: 'USER',
+                      message_uuid: messageUUID,
                     },
                   ],
                 ]);
                 setQuery('');
                 setshowError(false);
-                handleStream(query);
+                handleStream(query, messageUUID);
               }}
             >
               <textarea

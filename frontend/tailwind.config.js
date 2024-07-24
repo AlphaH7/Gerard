@@ -29,7 +29,7 @@ module.exports = {
           primary: '#246655',
           primary300: '#205b4c',
           primary400: '#1c5144',
-          primary500: '#0a1e19',
+          primary500: '#153d33',
         },
         gray: {
           100: '#f2f4fb',

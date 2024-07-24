@@ -7482,6 +7482,35 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ag-charts-types@npm:10.0.2":
+  version: 10.0.2
+  resolution: "ag-charts-types@npm:10.0.2"
+  checksum: f00a635bcc6eb1a08c0f6fece2145185259a755decc25a1762b66f8e65a0ddb31e5711fca95f32379663c9e816ff25dedf8876016026e59d1a26a00d68765348
+  languageName: node
+  linkType: hard
+
+"ag-grid-community@npm:32.0.2, ag-grid-community@npm:^32.0.2":
+  version: 32.0.2
+  resolution: "ag-grid-community@npm:32.0.2"
+  dependencies:
+    ag-charts-types: 10.0.2
+  checksum: 5fa46c863ae911615be6dffbc4ffcb4963158df9f1c58b4c646510656f03e17ef29ff5a91e737afc2032b2dbd9e0a87cc16aad875069f68bdbafd60cbf119c6e
+  languageName: node
+  linkType: hard
+
+"ag-grid-react@npm:^32.0.2":
+  version: 32.0.2
+  resolution: "ag-grid-react@npm:32.0.2"
+  dependencies:
+    ag-grid-community: 32.0.2
+    prop-types: ^15.8.1
+  peerDependencies:
+    react: ^16.3.0 || ^17.0.0 || ^18.0.0
+    react-dom: ^16.3.0 || ^17.0.0 || ^18.0.0
+  checksum: 4ed50bac434b4c59a893aa25be13155b9053f33c2abf4e07dc8444a6df7446f4796b45e80d6e4d090f474c3a84e2eca0bfd8ffbd113c9c3e456d4cddd52a6fce
+  languageName: node
+  linkType: hard
+
 "agent-base@npm:5":
   version: 5.1.1
   resolution: "agent-base@npm:5.1.1"
@@ -13127,6 +13156,8 @@ __metadata:
     "@typescript-eslint/eslint-plugin": ^5.62.0
     "@typescript-eslint/parser": ^5.62.0
     "@vercel/speed-insights": ^1.0.9
+    ag-grid-community: ^32.0.2
+    ag-grid-react: ^32.0.2
     autoprefixer: ^10.4.14
     axios: ^1.4.0
     commitizen: ^4.3.0
@@ -13156,6 +13187,8 @@ __metadata:
     firebase: ^10.1.0
     formidable: ^3.5.1
     fs: ^0.0.1-security
+    highcharts: ^11.4.6
+    highcharts-react-official: ^3.2.1
     http-server: ^14.1.1
     import: ^0.0.6
     jest: ^29.5.0
@@ -13784,6 +13817,23 @@ __metadata:
   version: 1.0.0
   resolution: "hexoid@npm:1.0.0"
   checksum: 27a148ca76a2358287f40445870116baaff4a0ed0acc99900bf167f0f708ffd82e044ff55e9949c71963852b580fc024146d3ac6d5d76b508b78d927fa48ae2d
+  languageName: node
+  linkType: hard
+
+"highcharts-react-official@npm:^3.2.1":
+  version: 3.2.1
+  resolution: "highcharts-react-official@npm:3.2.1"
+  peerDependencies:
+    highcharts: ">=6.0.0"
+    react: ">=16.8.0"
+  checksum: 615f1a352eb95f0e78189506e7d551071438fc11eabff78c55aeb6cc63658f4c284f4920f9e9c85113b319661bf5745c668ef22b71920c1a9f24749e49584aaf
+  languageName: node
+  linkType: hard
+
+"highcharts@npm:^11.4.6":
+  version: 11.4.6
+  resolution: "highcharts@npm:11.4.6"
+  checksum: 7aa3871d19892c20a95b36754cc8c0234af0dd310e1fbe9a87cf489c315d55ac99497d1dba87f0bea8356b9e5886231bbb25f6de0b1dba92b31456aeee481cab
   languageName: node
   linkType: hard
 

@@ -21,15 +21,35 @@ const execAPI = (success: (a: ApiClient) => any, fail?: (e: any) => void) => {
 };
 
 export const initChat = async (payload: any): Promise<any> => {
-  console.log('get chat init', payload);
   return execAPI(async (apiClient) => {
     const response = await apiClient.post<any>('/initchat', payload);
     return response;
   });
 };
 
+export const getSessionsByCourse = async (payload: any): Promise<any> => {
+  return execAPI(async (apiClient) => {
+    const response = await apiClient.post<any>('/getsessionsbycourse', payload);
+    return response;
+  });
+};
+
+export const getMessagesByCourse = async (payload: any): Promise<any> => {
+  return execAPI(async (apiClient) => {
+    const response = await apiClient.post<any>('/getmessagesbycourse', payload);
+    return response;
+  });
+};
+
+export const addrating = async (payload: any): Promise<any> => {
+  return execAPI(async (apiClient) => {
+    const response = await apiClient.post<any>('/addrating', payload);
+    return response;
+  });
+};
+
+
 export const chat = async (payload: any): Promise<any> => {
-  console.log('get chat init', payload);
   return execAPI(async (apiClient) => {
     const response = await apiClient.post<any>('/chat', payload);
     return response;

@@ -46,7 +46,6 @@ MILVUS_HOST = os.getenv('MILVUS_HOST', "milvus")
 MILVUS_PORT = os.getenv('MILVUS_PORT', "19530")
 local_embedding_model = "all-MiniLM-L6-v2"
 
-
 logger.info(f"Connecting to Milvus at {MILVUS_HOST}:{MILVUS_PORT}")
 try:
     connections.connect("default", host=MILVUS_HOST, port=MILVUS_PORT)
@@ -148,6 +147,7 @@ class CourseRead(BaseModel):
 class ChatRequest(BaseModel):
     course_id: str
     question: str
+    message_uuid: str
 
 class ChatSessionCreate(BaseModel):
     course_id: str
@@ -166,17 +166,31 @@ class ChatMessageCreate(BaseModel):
     chat_session_id: uuid.UUID
     message: str
     message_sender: str
+    message_uuid: uuid.UUID
 
 class ChatMessageRead(BaseModel):
     id: int
     chat_session_id: uuid.UUID
     message: str
     message_sender: str
+    message_uuid: uuid.UUID
     created_date: datetime
+    rating: Optional[int] = None
 
 class SetChatSessionHeading(BaseModel):
     chat_session_id: uuid.UUID
     chat_heading: str
+
+class CourseTopicCreate(BaseModel):
+    course_id: str
+    topic_name: str
+    topic_description: str
+
+class CourseTopicRead(BaseModel):
+    topic_id: int
+    course_id: str
+    topic_name: str
+    topic_description: str
 
 users = Table(
     "users",
@@ -225,7 +239,18 @@ chat_messages = Table(
     Column("chat_session_id", UUID(as_uuid=True), ForeignKey("chat_sessions.id")),
     Column("message", Text),
     Column("message_sender", String, nullable=False),  # Must be 'AI' or 'USER'
+    Column("message_uuid", UUID(as_uuid=True), default=uuid.uuid4),
     Column("created_date", DateTime, default=datetime.utcnow),
+    Column("rating", Integer, nullable=True),
+)
+
+course_topics = Table(
+    "course_topics",
+    metadata,
+    Column("topic_id", Integer, primary_key=True, autoincrement=True),
+    Column("course_id", String, ForeignKey("courses.course_id")),
+    Column("topic_name", String, nullable=False),
+    Column("topic_description", Text, nullable=True),
 )
 
 metadata.create_all(engine)
@@ -404,11 +429,75 @@ async def get_chat_sessions_by_email(email: EmailStr):
     sessions = await database.fetch_all(query)
     return sessions
 
-async def stream_and_save_ollama_model(question: str, context: str, chat_session_id: uuid.UUID) -> AsyncGenerator[str, None]:
+@app.get("/chat_sessions/by_course/{course_id}", response_model=List[ChatSessionRead])
+async def get_chat_sessions_by_course(course_id: str):
+    query = chat_sessions.select().where(chat_sessions.c.course_id == course_id).order_by(chat_sessions.c.created_date)
+    sessions = await database.fetch_all(query)
+    return sessions
+
+@app.get("/chat_messages/by_user/{user_id}", response_model=List[ChatMessageRead])
+async def get_chat_messages_by_user(user_id: int):
+    query = chat_messages.select().join(chat_sessions).where(chat_sessions.c.user_id == user_id).order_by(chat_messages.c.created_date)
+    messages = await database.fetch_all(query)
+    return messages
+
+@app.get("/chat_messages/by_course/{course_id}", response_model=List[ChatMessageRead])
+async def get_chat_messages_by_course(course_id: str):
+    query = chat_messages.select().join(chat_sessions).where(chat_sessions.c.course_id == course_id).order_by(chat_messages.c.created_date)
+    messages = await database.fetch_all(query)
+    return messages
+
+@app.post("/course_topics", response_model=CourseTopicRead)
+async def create_course_topic(topic: CourseTopicCreate):
+    query = course_topics.insert().values(
+        course_id=topic.course_id,
+        topic_name=topic.topic_name,
+        topic_description=topic.topic_description
+    )
+    last_record_id = await database.execute(query)
+    return {**topic.dict(), "topic_id": last_record_id}
+
+@app.get("/course_topics", response_model=List[CourseTopicRead])
+async def read_course_topics(skip: int = 0, limit: int = 10):
+    query = course_topics.select().offset(skip).limit(limit)
+    return await database.fetch_all(query)
+
+@app.get("/course_topics/{topic_id}", response_model=CourseTopicRead)
+async def read_course_topic(topic_id: int):
+    query = course_topics.select().where(course_topics.c.topic_id == topic_id)
+    topic = await database.fetch_one(query)
+    if topic is None:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    return topic
+
+@app.put("/course_topics/{topic_id}", response_model=CourseTopicRead)
+async def update_course_topic(topic_id: int, topic: CourseTopicCreate):
+    query = course_topics.update().where(course_topics.c.topic_id == topic_id).values(
+        topic_name=topic.topic_name,
+        topic_description=topic.topic_description
+    )
+    await database.execute(query)
+    return {**topic.dict(), "topic_id": topic_id}
+
+@app.delete("/course_topics/{topic_id}")
+async def delete_course_topic(topic_id: int):
+    query = course_topics.delete().where(course_topics.c.topic_id == topic_id)
+    await database.execute(query)
+    return {"detail": "Topic deleted"}
+
+@app.post("/add_rating")
+async def add_rating(message_uuid: uuid.UUID, rating: int):
+    if rating < 0 or rating > 5:
+        raise HTTPException(status_code=400, detail="Rating must be between 0 and 5")
+    query = chat_messages.update().where(chat_messages.c.message_uuid == message_uuid).values(rating=rating)
+    await database.execute(query)
+    return {"detail": "Rating added"}
+
+async def stream_and_save_ollama_model(question: str, context: str, chat_session_id: uuid.UUID, message_uuid: str) -> AsyncGenerator[str, None]:
     url = OLLAMA_ENDPOINT
     payload = {
         "model": "llama3",
-        "prompt": f"You are a teaching assistant. Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context. Be kind and follow all teaching principles. Always answer gently and in an encouraging way. Use the word Course instead of context in your responsey.\n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
+        "prompt": f"You are a teaching assistant. Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context. Be kind and follow all teaching principles. Always answer gently and in an encouraging way. Use the word Course instead of context in your responses \n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
         "stream": True
     }
 
@@ -438,8 +527,9 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
             ai_message_query = chat_messages.insert().values(
                 chat_session_id=chat_session_id,
                 message=ai_response,
-                message_sender='AI',
-                created_date=datetime.utcnow()
+                message_sender='RAG',
+                created_date=datetime.utcnow(),
+                message_uuid=message_uuid
             )
             await database.execute(ai_message_query)
 
@@ -463,7 +553,8 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
         chat_session_id=chat_session_id,
         message=question,
         message_sender='USER',
-        created_date=datetime.utcnow()
+        created_date=datetime.utcnow(),
+        message_uuid=request.message_uuid
     )
     await database.execute(user_message_query)
 
@@ -486,4 +577,91 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
         context += f"- {doc.page_content}\n"
 
     # Return a streaming response
-    return StreamingResponse(stream_and_save_ollama_model(question, context, chat_session_id), media_type="text/plain")
+    return StreamingResponse(stream_and_save_ollama_model(question, context, chat_session_id, request.message_uuid), media_type="text/plain")
+
+
+async def stream_and_save_ollama_model_garchat(question: str, context: str, chat_session_id: uuid.UUID, message_uuid: str) -> AsyncGenerator[str, None]:
+    url = OLLAMA_ENDPOINT
+    payload = {
+        "model": "llama3",
+        "prompt": f"You are a teaching assistant. Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided, mention that the answer you are providing is from your knowledge. Be kind and follow all teaching principles. Always answer gently and in an encouraging way. Use the word Course instead of context in your responses.\n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
+        "stream": True
+    }
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    response_chunks = []
+
+    timeout = httpx.Timeout(3600.0, read=3600.0, connect=3600.0)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            async with client.stream("POST", url, json=payload, headers=headers) as response:
+                if response.status_code != 200:
+                    detail = await response.text()
+                    logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
+                    raise HTTPException(status_code=response.status_code, detail=detail)
+                async for chunk in response.aiter_text():
+                    logger.info(f"Received chunk: {chunk}")
+                    chunk_data = json.loads(chunk)
+                    if 'response' in chunk_data:
+                        response_chunks.append(chunk_data['response'])
+                        yield chunk
+
+            ai_response = ''.join(response_chunks)
+            ai_message_query = chat_messages.insert().values(
+                chat_session_id=chat_session_id,
+                message=ai_response,
+                message_sender='GAR',
+                created_date=datetime.utcnow(),
+                message_uuid=message_uuid
+            )
+            await database.execute(ai_message_query)
+
+        except httpx.ConnectError as e:
+            logger.error(f"Connection error: {e}")
+            raise HTTPException(status_code=502, detail="Failed to connect to the Ollama server.")
+        except httpx.ReadTimeout as e:
+            logger.error(f"Read timeout error: {e}")
+            raise HTTPException(status_code=504, detail="Read timeout from the Ollama server.")
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
+            raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@app.post("/garchat")
+async def garchat(request: ChatRequest, chat_session_id: uuid.UUID):
+    course_id = request.course_id
+    question = request.question
+
+    # Insert user message into the database (mocked)
+    user_message_query = chat_messages.insert().values(
+        chat_session_id=chat_session_id,
+        message=question,
+        message_sender='USER',
+        created_date=datetime.utcnow(),
+        message_uuid=request.message_uuid
+    )
+    await database.execute(user_message_query)
+
+    # Initialize embeddings and Milvus connection
+    embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
+    vector_db = Milvus(
+        embeddings,
+        collection_name=course_id.lower(),
+        connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
+    )
+
+    # Perform similarity search with filter on course_id
+    relevant_docs = vector_db.similarity_search(question, k=25)
+
+    print(relevant_docs)
+    
+    # Prepare context for response
+    context = ""
+    for doc in relevant_docs:
+        context += f"- {doc.page_content}\n"
+
+    # Return a streaming response
+    return StreamingResponse(stream_and_save_ollama_model_garchat(question, context, chat_session_id, request.message_uuid), media_type="text/plain")

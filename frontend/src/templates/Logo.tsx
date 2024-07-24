@@ -2,7 +2,7 @@ import { AppConfig } from "@/utils/AppConfig";
 
 const Logo = () => {
   return (
-    <div className="flex size-full  justify-center items-center p-2">
+    <div className="flex   items-center p-2">
       <img src="/assets/images/gerard_logo.png"  className="size-10 mr-2 dark:invert" />
       <div className="flex flex-col relative">        
         <h1 className="text-3xl leading-8 dark:text-white font-bold p-0">{AppConfig.title}</h1>
