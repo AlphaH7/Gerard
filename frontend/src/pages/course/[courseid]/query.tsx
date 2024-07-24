@@ -327,10 +327,57 @@ const CourseChat = () => {
                 e.preventDefault();
                 initChatSession();
               }}
-              className="flex flex-col max-w-[500px] px-2 w-full  dark:text-white"
+              className="flex flex-col max-w-[900px] px-2 w-full  dark:text-white"
             >
-              <p className="text-2xl pb-1">Hi there!</p>
-              <p className="pb-4 text-base">Let's get to know each other!</p>
+              <p className="text-2xl pb-1 font-black">Hi there!</p>
+              <p className="pb-4 text-base">Gerard Welcomes you!</p>
+
+              <h3 className='font-black'>Purpose Of The Study</h3>
+
+              <p className="text-sm py-4">
+                This project requires us to design and develop active learning
+                tools which can support students in engaging with active
+                learning techniques in computing science. We are developing a
+                system that helps answer course and academic related questions
+                for students, in turn empowering active learning techniques. The
+                data collected from this experiment will be used to process the
+                feasibility and efficacy of the active learning toolkit
+                developed and judge the best scenario for the use of RAG
+                (Retrieval-Augmented Generation) chatbot and GAR (Generative
+                Augmented Retrieval) chatbots in education.
+              </p>
+              <p className="text-sm pb-4">
+                Feel free to select a course of your choice and converse as much
+                with the application and rate the answers. We request you to
+                share a review about your interaction using the feedback form
+                provided on the application.
+              </p>
+              <p className="text-sm pb-4">
+                The data that will be collected for the purpose of this research
+                includes, conversation messages, messages ratings, user
+                experience feedback, user consent and name. This application
+                follows all GDPR regulations and policies of data and privacy
+                protection. The data collected, will be discarded towards the
+                completion of this research.
+              </p>
+
+              <h3 className='font-black'>Consent Form</h3>
+
+              <p className="text-sm py-4">
+              • I have read and understood the information provided about the
+                study.
+              </p>
+              <p className="text-sm pb-4">
+              • I understand that my participation is voluntary and that I can
+                withdraw at any time without consequences. [Please reach out to
+                us using the above-mentioned email ID’s. We would be happy to
+                help]
+              </p>
+              <p className="text-sm pb-4">
+              • I understand that my data will be handled in compliance with
+                GDPR regulations.
+              </p>
+
               <div>
                 <AXInput
                   type={'text'}
