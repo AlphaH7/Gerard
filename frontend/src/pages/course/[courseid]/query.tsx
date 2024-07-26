@@ -105,7 +105,7 @@ const CourseChat = () => {
     // if(payload.trim() === '')return;
     try {
       const response = await fetch(
-        `http://local.dev.server:6789/backend/apis/chat?chat_session_id=${currentChatId}`,
+        `/backend/apis/chat?chat_session_id=${currentChatId}`,
         {
           method: 'POST',
           headers: {

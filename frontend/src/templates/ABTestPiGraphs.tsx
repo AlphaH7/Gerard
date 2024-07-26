@@ -1,4 +1,4 @@
-// components/ABtestPiGraphs.tsx
+// components/ABTestPiGraphs.tsx
 /* eslint-disable no-plusplus */
 // @ts-nocheck
 
@@ -20,7 +20,7 @@ type GroupedByDate = {
   [date: string]: Session[];
 };
 
-const ABtestPiGraphs: React.FC<{ sessions: Session[]; type: string }> = ({ sessions, type }) => {
+const ABTestPiGraphs: React.FC<{ sessions: Session[]; type: string }> = ({ sessions, type }) => {
   const darkMode = true;
 
 
@@ -70,4 +70,4 @@ const ABtestPiGraphs: React.FC<{ sessions: Session[]; type: string }> = ({ sessi
   );
 };
 
-export default ABtestPiGraphs;
+export default ABTestPiGraphs;

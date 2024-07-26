@@ -38,7 +38,7 @@ import UniqueUserLineGraph from '@/templates/UniqueUserLineGraph';
 import UserEngagementLineGraph from '@/templates/UserEngagementLineGraph';
 import ABTestSessionsGraphs from '@/templates/ABTestSessionsGraphs';
 import UserRetentionBarGraph from '@/templates/UserRetentionBarGraph';
-import ABtestPiGraphs from '@/templates/ABtestPiGraphs';
+import ABTestPiGraphs from '@/templates/ABTestPiGraphs';
 import AnimatedNumber from '@/templates/widgets/AnimatedNumber';
 import Main from '@/templates/Main';
 import UserTable from '@/templates/widgets/UserTable';
@@ -350,8 +350,8 @@ const Analytics = () => {
             <UniqueUserLineGraph />
 
             <div className=" grid grid-cols-1 gap-4 md:grid-cols-2">
-              <ABtestPiGraphs {...{ sessions: messages, type: 'RAG' }} />
-              <ABtestPiGraphs {...{ sessions: messages, type: 'GAR' }} />
+              <ABTestPiGraphs {...{ sessions: messages, type: 'RAG' }} />
+              <ABTestPiGraphs {...{ sessions: messages, type: 'GAR' }} />
             </div>
 
             <ABTestSessionsGraphs {...{ sessions: messages }} />
