@@ -58,7 +58,7 @@ except Exception as e:
 MINIO_ADDRESS = os.getenv('MINIO_ADDRESS', "minio:9000")
 MINIO_ACCESS_KEY = os.getenv('MINIO_ROOT_USER', "minioadmin")
 MINIO_SECRET_KEY = os.getenv('MINIO_ROOT_PASSWORD', "minioadmin")
-OLLAMA_ENDPOINT = os.getenv('OLLAMA_ENDPOINT', "http://host.docker.internal:11434/api/generate")
+OLLAMA_ENDPOINT = os.getenv('OLLAMA_ENDPOINT', "http://host.docker.internal:11434/api/chat")
 
 SECRET_KEY = os.getenv('SECRET_KEY', "secret")
 ALGORITHM = "HS256"
@@ -148,6 +148,7 @@ class ChatRequest(BaseModel):
     course_id: str
     question: str
     message_uuid: str
+    chat: List[dict]
 
 class ChatSessionCreate(BaseModel):
     course_id: str
@@ -493,17 +494,28 @@ async def add_rating(message_uuid: uuid.UUID, rating: int):
     await database.execute(query)
     return {"detail": "Rating added"}
 
-async def stream_and_save_ollama_model(question: str, context: str, chat_session_id: uuid.UUID, message_uuid: str) -> AsyncGenerator[str, None]:
+async def stream_and_save_ollama_model(question: str, chat: List[dict], context: str, chat_session_id: uuid.UUID, message_uuid: str) -> AsyncGenerator[str, None]:
     url = OLLAMA_ENDPOINT
     payload = {
         "model": "llama3",
-        "prompt": f"You are a teaching assistant. Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided or local db provided, just say that you don't know, don't try to make up an answer from your knowledge apart from the context. Be kind and follow all teaching principles. Always answer gently and in an encouraging way. Use the word Course instead of context in your responses \n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
-        "stream": True
+        "messages": [
+            {
+                "role": "system",
+                "content": f"You are a teaching assistant; use the Course information provided to answer the question kindly and encouragingly, stating  - I donot know the answer to that based on the Course information provided. If the answer is not found in the Course or local database; always maintain a polite and supportive tone. The context in relevant to this chat is as follows, plz answer only and only on the basis of this information provided ahead and refuse to contribute to an answer if the answer is not related or present in the ahead presented context/course material - {context}"                
+            }
+        ] + chat + [
+            {
+                "role": "user",
+                "content": question
+            }
+        ],
     }
 
     headers = {
         "Content-Type": "application/json"
     }
+
+    logger.info( payload)
 
     response_chunks = []
 
@@ -511,7 +523,7 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            async with client.stream("POST", url, json=payload, headers=headers) as response:
+            async with client.stream("POST", url, json=payload, headers=headers) as response:                
                 if response.status_code != 200:
                     detail = await response.text()
                     logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
@@ -520,8 +532,8 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
                     logger.info(f"Received chunk: {chunk}")
                     try:
                         chunk_data = json.loads(chunk)
-                        if 'response' in chunk_data:
-                            response_chunks.append(chunk_data['response'])
+                        if 'message' in chunk_data:
+                            response_chunks.append(chunk_data['message']['content'])
                             yield chunk
                     except json.JSONDecodeError as e:
                         logger.error(f"JSON decode error: {e} - Chunk: {chunk}")
@@ -550,6 +562,7 @@ async def stream_and_save_ollama_model(question: str, context: str, chat_session
 @app.post("/chat")
 async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     course_id = request.course_id
+    chat = request.chat
     question = request.question
     msguuid = request.message_uuid
 
@@ -572,9 +585,9 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     )
 
     # Perform similarity search with filter on course_id
-    relevant_docs = vector_db.similarity_search(question, k=25)
+    relevant_docs = vector_db.similarity_search(question, k=5)
 
-    print(relevant_docs)
+    # print(relevant_docs)
     
     # Prepare context for response
     context = ""
@@ -582,7 +595,7 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
         context += f"- {doc.page_content}\n"
 
     # Return a streaming response
-    return StreamingResponse(stream_and_save_ollama_model(question, context, chat_session_id, msguuid), media_type="text/plain")
+    return StreamingResponse(stream_and_save_ollama_model(question, chat, context, chat_session_id, msguuid), media_type="text/plain")
 
 
 async def stream_and_save_ollama_model_garchat(question: str, context: str, chat_session_id: uuid.UUID, message_uuid: str) -> AsyncGenerator[str, None]:

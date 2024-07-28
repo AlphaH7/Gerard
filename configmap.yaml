@@ -7,4 +7,4 @@ data:
   SECRET_KEY: axjwtkey
   MILVUS_HOST: milvus
   MILVUS_PORT: "19530"
-  OLLAMA_ENDPOINT: http://host.docker.internal:11434/api/generate
+  OLLAMA_ENDPOINT: http://host.docker.internal:11434/api/chat

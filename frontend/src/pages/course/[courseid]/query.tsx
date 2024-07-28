@@ -115,6 +115,12 @@ const CourseChat = () => {
           body: JSON.stringify({
             course_id: courseid.toUpperCase(),
             question: payload,
+            chat: chatArr.map(
+              data => ({                
+                  "role": data.author === 'AI' ?  "assistant" : 'user',
+                  "content": data.message
+              })
+            ),
             message_uuid: messageUUID,
           }),
         },
@@ -142,7 +148,7 @@ const CourseChat = () => {
           // if (line.trim() === '') return;
           try {
             const json = JSON.parse(line);
-            const text = json.response;
+            const text = json.message.content;
 
             // Only append new content that wasn't already in the previous text
             if (!previousText.endsWith(text)) {
