@@ -179,6 +179,8 @@ class ChatMessageRead(BaseModel):
     message_uuid: uuid.UUID
     created_date: datetime
     rating: Optional[int] = None
+    prompt_classification: Optional[str] = None
+    topic_classification: Optional[str] = None
 
 class SetChatSessionHeading(BaseModel):
     chat_session_id: uuid.UUID
@@ -245,6 +247,8 @@ chat_messages = Table(
     Column("message_uuid", UUID(as_uuid=True), default=uuid.uuid4),
     Column("created_date", DateTime, default=datetime.utcnow),
     Column("rating", Integer, nullable=True),
+    Column("prompt_classification", String, nullable=True),
+    Column("topic_classification", String, nullable=True),
 )
 
 course_topics = Table(
@@ -560,6 +564,101 @@ async def stream_and_save_ollama_model(question: str, chat: List[dict], context:
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             raise HTTPException(status_code=500, detail="Internal Server Error")
+        
+async def classifyTopic(question: str, course_id: str) -> str:
+    query = course_topics.select().where(course_topics.c.course_id == course_id)
+    topics = await database.fetch_all(query)
+    
+    # Log the entire topics object
+    logger.info(f"Course topics for course_id {course_id}: {topics}")
+    
+    system_message = """
+    Classify the provided text into one or more of these classes. Make sure to follow the format given below. Here are the available topics:
+
+    """
+    for topic in topics:
+        system_message += f"{topic.topic_name}: {topic.topic_description}\n"
+    system_message += "Other: Anything that doesn't fit into the other categories.\n\n"
+    
+    system_message += """Additionally, classify the provided text into one or more of these types. Make sure to follow the format given below. Here are the available types:
+
+    Conceptual Understanding: Definition and Explanation, Theoretical Questions
+    Practical Implementation: How-to Guides, Examples and Use Cases
+    Analytical: Comparison and Contrast, Advantages and Disadvantages
+    Problem-Solving: Debugging Help, Optimization
+    Application: Project Ideas, Integration
+    Contextual Understanding: Historical Context, Ethical and Societal Impact
+    Evaluation and Critique: Critical Analysis, Reviews and Feedback
+    Resource Requests: Reference Materials, Tool Recommendations
+    Other: Anything that doesn't fit into the other categories.
+
+    Please follow these strict guidelines:
+    1. Only use the topic names and types provided above.
+    2. Respond strictly in the format: PromptTopic //// PromptClassification
+    3. If it doesn't fit in any topic or type, return only: Other
+    4. Do not include any additional text or explanation.
+    5. Make sure to return exactly one line of text with the topic names separated by a comma.
+    6. Please make sure to strictly follow the format in the response: PromptTopic: One of the topics listed //// PromptClassification : Prompt types given (use only the name, not the text after :)
+    6. AT ANY POINT IF YOU DONOT KNOW WHAT TO REPLY JUST REPLY: Other //// Other
+
+    Examples:
+    - For a text about creating Python lists and adding elements, you will respond with: Python Lists, Practical Implementation: How-to Guides //// Practical Implementation
+    - For a text that doesn't fit any provided topic, you will respond with: Other
+    - Answer strictly in the format and maintaining only the topics and types given, or for any other non classifiable prompt or text just return: Other 
+    """
+    
+    # Log the constructed system message
+    logger.info(f"Constructed system message: {system_message}")
+
+    prompt_messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": f"{topics[0].topic_description}"},
+        {"role": "assistant", "content": f"{topics[0].topic_name} //// Conceptual Understanding, Analytical"},
+        {"role": "user", "content": f"{topics[0].topic_description} and {topics[1].topic_description}"},
+        {"role": "assistant", "content": f"{topics[0].topic_name}, {topics[1].topic_name} //// Conceptual Understanding, Analytical"},
+        {"role": "user", "content": f"{topics[1].topic_description}"},
+        {"role": "assistant", "content": f"{topics[1].topic_name} //// Resource Requests, Application"},
+        # {"role": "user", "content": "What are Python lists and how are they defined?"},
+        # {"role": "assistant", "content": "Python Lists, Python Introductio //// Conceptual Understanding"},
+        # {"role": "user", "content": "Explain the underlying data structure of Python lists."},
+        # {"role": "assistant", "content": "Python Lists, Conceptual Understanding: Theoretical Questions //// Conceptual Understanding"},
+        {"role": "user", "content": question}
+    ]
+    
+    payload = {
+        "model": "llama3.1",
+        "messages": prompt_messages,
+        "stream": False
+    }
+
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    timeout = httpx.Timeout(30.0, read=30.0, connect=30.0)
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            response = await client.post(OLLAMA_ENDPOINT, json=payload, headers=headers)
+            if response.status_code != 200:
+                detail = response.text
+                logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
+                raise HTTPException(status_code=response.status_code, detail=detail)
+            
+            response_data = response.json()
+            classification = response_data['message']['content']
+            
+            # Log the classification result
+            logger.info(f"Classification result: {classification}")
+            
+            return classification
+        except httpx.RequestError as exc:
+            logger.error(f"An error occurred while requesting {exc.request.url!r}.")
+            raise HTTPException(status_code=500, detail="Error communicating with the classification service.")
+        except httpx.HTTPStatusError as exc:
+            logger.error(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}.")
+            raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text)
+
 
 @app.post("/chat")
 async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
@@ -568,13 +667,16 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     question = request.question
     msguuid = request.message_uuid
 
+    classification = await classifyTopic(question, course_id)
+
     # Insert user message into the database (mocked)
     user_message_query = chat_messages.insert().values(
         chat_session_id=chat_session_id,
         message=question,
         message_sender='USER',
         created_date=datetime.utcnow(),
-        message_uuid=msguuid
+        message_uuid=msguuid,
+        topic_classification=classification
     )
     await database.execute(user_message_query)
 

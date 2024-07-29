@@ -22,6 +22,7 @@ import Link from 'next/link';
 import AXInput from '@/templates/widgets/AXInput';
 import { generateUUID, generateUniqueParticipantId } from '@/utils/AppHelper';
 import { FaStar } from 'react-icons/fa6';
+import Markdown from 'react-markdown'
 
 interface IChatElem {
   message: string;
@@ -124,7 +125,7 @@ const CourseChat = () => {
     // if(payload.trim() === '')return;
     try {
       const response = await fetch(
-        `/backend/apis/chat?chat_session_id=${currentChatId}`,
+        `http://localhost:6789/backend/apis/chat?chat_session_id=${currentChatId}`,
         {
           method: 'POST',
           headers: {
@@ -447,7 +448,7 @@ const CourseChat = () => {
           </div>
         ) : (
           <div className=" overflow-auto h-full w-full flex flex-col justify-end pb-2 animate-from-bottom relative">
-            <div className="h-full overflow-auto pb-6 flex flex-col justify-end">
+            <div className="h-full overflow-auto flex flex-col justify-end">
               {/* <div className='absolute top-6 right-6 text-base font-bold'>Welcome, Alistier X.</div> */}
 
               <div className="w-full max-h-full overflow-auto max-w-[900px]">
@@ -460,15 +461,12 @@ const CourseChat = () => {
                         key={data}
                         className="flex px-4 md:px-0 flex-col animate-from-bottom"
                       >
-                        <p className="rounded-2xl max-w-[80%] text-xs mt-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-default-primary500 bg-gray-100">
-                          {data.message.split('\n').map((line, index) => (
-                            <React.Fragment key={index + data.message}>
+                        <p className="chat-reply-ctr rounded-2xl max-w-[80%] text-xs mt-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-default-primary500 bg-gray-100">
+                          
                               <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {line}
+                                {data.message}
                               </ReactMarkdown>
-                              <br />
-                            </React.Fragment>
-                          ))}
+                          
                         </p>
                         <div
                           {...(chatArr.length - 1 === i
@@ -515,7 +513,7 @@ const CourseChat = () => {
                     ) : (
                       <div
                         key={data}
-                        className="flex px-4 md:px-0 animate-from-bottom justify-end"
+                        className="flex px-4 md:px-0 animate-from-bottom justify-end mb-4"
                         {...(chatArr.length - 1 === i
                           ? { ref: lastMessageRef }
                           : {})}

@@ -528,3 +528,23 @@ label {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.chat-reply-ctr{
+  > * {
+    @apply my-4
+  }
+  pre{
+    @apply bg-slate-950;
+    @apply p-4;
+    @apply rounded-lg;
+  }
+  p{
+    code{
+      @apply bg-slate-950;
+      @apply py-1;
+      @apply px-2;
+      @apply mx-1;
+      @apply rounded-sm;
+    }
+  }
+}
