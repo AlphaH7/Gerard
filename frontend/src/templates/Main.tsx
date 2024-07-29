@@ -20,8 +20,8 @@ import { FaMapLocation } from 'react-icons/fa6';
 import { IoMdAnalytics } from 'react-icons/io';
 import { LuBrainCircuit } from 'react-icons/lu';
 import { RiChatVoiceFill } from 'react-icons/ri';
-import { RiLogoutBoxRFill } from "react-icons/ri";
-import { FaUsers } from "react-icons/fa";
+import { RiLogoutBoxRFill } from 'react-icons/ri';
+import { FaUsers } from 'react-icons/fa';
 
 import {
   BsEmojiDizzyFill,
@@ -70,10 +70,15 @@ const Analytics = ({ children, title, description }) => {
 
       <main className="content w-full text-xl flex grow max-h-full ">
         <div className=" h-full bg-slate-950 w-60 pt-4 flex flex-col text-base">
-          <div className='ml-4'><Logo /></div>
+          <div className="ml-4">
+            <Logo />
+          </div>
 
           <div className="flex flex-col justify-center grow">
-            <Link href="/analytics" className="text-white py-3 w-full flex pl-4">
+            <Link
+              href="/analytics"
+              className="text-white py-3 w-full flex pl-4"
+            >
               <IoMdAnalytics className="mr-2 size-6 mr-4" />
               Analytics
             </Link>
@@ -85,22 +90,24 @@ const Analytics = ({ children, title, description }) => {
               <BsChatRightText className="mr-2 size-6 mr-4" />
               Participant Messages
             </Link>
-            <Link href="/analytics" className="text-white py-3 w-full flex pl-4">
-              <HiAcademicCap className="mr-2 size-6 mr-4" />
+            <Link href="/courses" className="text-white py-3 w-full flex pl-4">
+              <VscFolderLibrary className="mr-2 size-6 mr-4" />
               Courses
             </Link>
-            <Link href="/analytics" className="text-white py-3 w-full flex pl-4">
-              <VscFolderLibrary className="mr-2 size-6 mr-4" />
-              Course Content
-            </Link>
-            <div className='px-4 py-6'>
-                <div className='w-full h-[1px] bg-white'/>
+            <div className="px-4 py-6">
+              <div className="w-full h-[1px] bg-white" />
             </div>
-            <Link href="/analytics" className="text-white py-3 w-full flex pl-4">
+            {/* <Link
+              href="/analytics"
+              className="text-white py-3 w-full flex pl-4"
+            >
               <FaUserAstronaut className="mr-2 size-6 mr-4" />
               Account
-            </Link>
-            <Link href="/analytics" className="text-white py-3 w-full flex pl-4">
+            </Link> */}
+            <Link
+              href="/analytics"
+              className="text-white py-3 w-full flex pl-4"
+            >
               <RiLogoutBoxRFill className="mr-2 size-6 mr-4" />
               Logout
             </Link>

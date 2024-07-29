@@ -18,7 +18,6 @@ import {
   getCurrentCourse,
   getcourses,
   getMessagesByCourse,
-  getSessionsByCourse,
 } from '@/utils/ApiHelper';
 import Link from 'next/link';
 import AXInput from '@/templates/widgets/AXInput';
@@ -51,7 +50,7 @@ const Analytics = () => {
 
   const getsessionsByCourse = async (course) => {
     try {
-      const response = await getSessionsByCourse({ course });
+      const response = await getMessagesByCourse({ course });
       console.log('response - ', response);
       setsessions(response);
     } catch (apierror: any) {
@@ -91,7 +90,7 @@ const Analytics = () => {
         <div className="flex w-full items-center justify-between">
           <div className=" flex  items-center text-xl ">
             <BsChatRightText className="mr-2 size-6" />
-            <h2 className=" font-black">Participant Sessions</h2>
+            <h2 className=" font-black">Participant Messages</h2>
           </div>
         </div>
 
@@ -162,8 +161,8 @@ const Analytics = () => {
           <AgGridReact
             columnDefs={[
               {
-                headerName: 'ID',
-                field: 'id',
+                headerName: 'Chat Session ID',
+                field: 'chat_session_id',
                 checkboxSelection: false,
                 sortable: true,
                 filter: true,
@@ -178,21 +177,30 @@ const Analytics = () => {
                 floatingFilter: true,
               },
               {
-                headerName: 'Participant #',
-                field: 'name',
+                headerName: 'Author',
+                field: 'message_sender',
+                checkboxSelection: false,
+                sortable: true,
+                filter: true,
+                floatingFilter: true,                
+              },
+              {
+                headerName: 'Message',
+                field: 'message',
                 checkboxSelection: false,
                 sortable: true,
                 filter: true,
                 floatingFilter: true,
+                flex: 1
               },
             ]}
             rowData={sessions}
             domLayout="autoHeight"
             pagination
-            defaultColDef={{
-              flex: 1,
-              resizable: true,
-            }}
+            // defaultColDef={{
+            //   flex: 1,
+            //   resizable: true,
+            // }}
             paginationPageSize={10}
             rowSelection="multiple"
             onGridReady={() => {}}

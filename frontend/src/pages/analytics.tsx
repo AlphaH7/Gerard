@@ -207,7 +207,7 @@ const Analytics = () => {
                 (selectedCourse === data.course_id
                   ? 'bg-slate-950 '
                   : 'border-transparent') +
-                ' relative text-xs py-2 font-semibold cursor-pointer  px-2 py-1 rounded-t-md'
+                ' relative text-xs py-2 font-semibold cursor-pointer  px-2  rounded-t-md'
               }
             >{`${data.course_id} - ${data.course_name}`}</div>
           ))}

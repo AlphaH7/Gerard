@@ -48,6 +48,19 @@ export const addrating = async (payload: any): Promise<any> => {
   });
 };
 
+export const addcoursetopic = async (payload: any): Promise<any> => {
+  return execAPI(async (apiClient) => {
+    const response = await apiClient.post<any>('/addcoursetopic', payload);
+    return response;
+  });
+};
+
+export const adddocumententry = async (payload: any): Promise<any> => {
+  return execAPI(async (apiClient) => {
+    const response = await apiClient.post<any>('/adddocumententry', payload);
+    return response;
+  });
+};
 
 export const chat = async (payload: any): Promise<any> => {
   return execAPI(async (apiClient) => {
@@ -64,6 +77,21 @@ export const getcourses = async (): Promise<any> => {
   });
 };
 
+export const getcoursetopics = async (): Promise<any> => {
+  console.log('get courses list');
+  return execAPI(async (apiClient) => {
+    const response = await apiClient.get<any>('/coursetopics');
+    return response;
+  });
+};
+
+export const getcoursedocuments = async (): Promise<any> => {
+  console.log('get courses docs');
+  return execAPI(async (apiClient) => {
+    const response = await apiClient.get<any>('/coursedocuments');
+    return response;
+  });
+};
 
 export const getCurrentCourse = async (payload: any): Promise<any> => {
   console.log('get courses list');

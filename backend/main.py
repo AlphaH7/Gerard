@@ -126,10 +126,12 @@ class UserRead(BaseModel):
 class DocumentCreate(BaseModel):
     document_url: str
     user_id: int
+    course_id: str
 
 class DocumentRead(BaseModel):
     id: int
     document_url: str
+    course_id: str
     user_id: int
 
 class CourseCreate(BaseModel):
@@ -282,7 +284,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.post("/documents", response_model=DocumentRead)
 async def create_document(document: DocumentCreate):
-    query = documents.insert().values(document_url=document.document_url, user_id=document.user_id)
+    query = documents.insert().values(document_url=document.document_url, user_id=document.user_id, course_id=document.course_id)
     last_record_id = await database.execute(query)
     return {**document.dict(), "id": last_record_id}
 

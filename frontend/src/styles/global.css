@@ -277,6 +277,12 @@ div.no-animation * {
   color: #000;
   height: 2.8rem;
   transition: all 0.5s;
+  border: 1px solid;
+  @apply border-slate-950
+}
+
+textarea.ax-input-no-height{
+  height: 8rem !important;
 }
 
 label {
