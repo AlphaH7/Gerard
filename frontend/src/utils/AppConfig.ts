@@ -1,7 +1,7 @@
 export const AppConfig = {
   site_name: 'Gerard',
   title: 'Gerard',
-  release: 'Alpha',
+  release: 'Beta',
   description: 'AI for Education',
   locale: 'en',
 };

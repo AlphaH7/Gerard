@@ -21,6 +21,7 @@ import { IoMdAnalytics } from 'react-icons/io';
 import { LuBrainCircuit } from 'react-icons/lu';
 import { RiChatVoiceFill } from 'react-icons/ri';
 import { RiLogoutBoxRFill } from "react-icons/ri";
+import { FaUsers } from "react-icons/fa";
 
 import {
   BsEmojiDizzyFill,
@@ -77,8 +78,12 @@ const Analytics = ({ children, title, description }) => {
               Analytics
             </Link>
             <Link href="/sessions" className="text-white py-3 w-full flex pl-4">
-              <BsChatRightText className="mr-2 size-6 mr-4" />
+              <FaUsers className="mr-2 size-6 mr-4" />
               Participant Sessions
+            </Link>
+            <Link href="/messages" className="text-white py-3 w-full flex pl-4">
+              <BsChatRightText className="mr-2 size-6 mr-4" />
+              Participant Messages
             </Link>
             <Link href="/analytics" className="text-white py-3 w-full flex pl-4">
               <HiAcademicCap className="mr-2 size-6 mr-4" />

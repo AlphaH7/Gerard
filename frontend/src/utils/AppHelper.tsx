@@ -40,3 +40,14 @@ export const generateUUID: () => string = () => {
     byteToHex.slice(10, 16).join(''), // Including timestamp in the UUID
   ].join('-');
 };
+
+
+export const generateUniqueParticipantId : () => string = () => {
+  const characters = '0123456789abcdefghijklmnopqrstuvwxyz';
+  let result = '';
+  for (let i = 0; i < 10; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      result += characters[randomIndex];
+  }
+  return result;
+}

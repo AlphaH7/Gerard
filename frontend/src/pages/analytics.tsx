@@ -136,7 +136,7 @@ const Analytics = () => {
       title={`${AppConfig.title} - ${AppConfig.description}`}
       description={'Analytics'}
     >
-      <div className="container mx-auto flex h-full flex-col justify-start px-4 pb-4 transition-all dark:text-white">
+      <div className="container mx-auto flex h-full flex-col justify-start px-4 py-4 pt-8 transition-all dark:text-white">
         <div className="flex w-full items-center justify-between">
           <div className=" flex  items-center text-xl ">
             <IoMdAnalytics className="mr-2 size-6" />
@@ -199,15 +199,15 @@ const Analytics = () => {
           <h2 className=" font-black">Course Statistics</h2>
         </div>
 
-        <div className="w-full flex border-b-[1px] border-white">
+        <div className="w-full flex border-b-2 border-slate-950">
           {courses.map((data) => (
             <div
               onClick={setselectedCourse.bind(null, data.course_id)}
               className={
                 (selectedCourse === data.course_id
-                  ? 'border-white'
+                  ? 'bg-slate-950 '
                   : 'border-transparent') +
-                ' border-x-[1px] border-t-[1px] relative text-xs font-semibold cursor-pointer  px-2 py-1 rounded-t-md'
+                ' relative text-xs py-2 font-semibold cursor-pointer  px-2 py-1 rounded-t-md'
               }
             >{`${data.course_id} - ${data.course_name}`}</div>
           ))}

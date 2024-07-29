@@ -7482,32 +7482,47 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ag-charts-types@npm:10.0.2":
-  version: 10.0.2
-  resolution: "ag-charts-types@npm:10.0.2"
-  checksum: f00a635bcc6eb1a08c0f6fece2145185259a755decc25a1762b66f8e65a0ddb31e5711fca95f32379663c9e816ff25dedf8876016026e59d1a26a00d68765348
+"ag-charts-community@npm:9.3.2":
+  version: 9.3.2
+  resolution: "ag-charts-community@npm:9.3.2"
+  checksum: be5bdb00230bac81a498526ba07a199183b327cbe34b3173850a030ee81e1aaeadf7acefd8f708b42e26dea139607b6ed787aebbac7546c210a5128cb0c5e4ab
   languageName: node
   linkType: hard
 
-"ag-grid-community@npm:32.0.2, ag-grid-community@npm:^32.0.2":
-  version: 32.0.2
-  resolution: "ag-grid-community@npm:32.0.2"
-  dependencies:
-    ag-charts-types: 10.0.2
-  checksum: 5fa46c863ae911615be6dffbc4ffcb4963158df9f1c58b4c646510656f03e17ef29ff5a91e737afc2032b2dbd9e0a87cc16aad875069f68bdbafd60cbf119c6e
+"ag-grid-community@npm:31.3.4":
+  version: 31.3.4
+  resolution: "ag-grid-community@npm:31.3.4"
+  checksum: 725532245ad8ab5fe602177f8bbc671ea05ae2f9225c5a910675d2bc6af52e1ffd282fb9a0437e04ea993a4896ab427d6ba7d64fdf2db206def5dc89bbba660a
   languageName: node
   linkType: hard
 
-"ag-grid-react@npm:^32.0.2":
-  version: 32.0.2
-  resolution: "ag-grid-react@npm:32.0.2"
+"ag-grid-community@npm:^30.2.1":
+  version: 30.2.1
+  resolution: "ag-grid-community@npm:30.2.1"
+  checksum: c3c3ee522185a7370bcb8c5fd59887665e39e5cdecbf1ce7c3fb20f211f0f8ebd0a48aff059d1e17c4d090b6b78335961513d8430bff820ea274bb79efe36eb7
+  languageName: node
+  linkType: hard
+
+"ag-grid-enterprise@npm:^31.0.1":
+  version: 31.3.4
+  resolution: "ag-grid-enterprise@npm:31.3.4"
   dependencies:
-    ag-grid-community: 32.0.2
+    ag-charts-community: 9.3.2
+    ag-grid-community: 31.3.4
+  checksum: 6b97550fdc9d63256b53da4d1ad945e02d7d936fba79e181aa8f1bf5b1a954dcccc2bbfca6eb671e047428b6aa1380ce4e6c75dbf2c04b1001a66e00982ad815
+  languageName: node
+  linkType: hard
+
+"ag-grid-react@npm:^30.2.1":
+  version: 30.2.1
+  resolution: "ag-grid-react@npm:30.2.1"
+  dependencies:
     prop-types: ^15.8.1
   peerDependencies:
+    ag-grid-community: ~30.2.1
     react: ^16.3.0 || ^17.0.0 || ^18.0.0
     react-dom: ^16.3.0 || ^17.0.0 || ^18.0.0
-  checksum: 4ed50bac434b4c59a893aa25be13155b9053f33c2abf4e07dc8444a6df7446f4796b45e80d6e4d090f474c3a84e2eca0bfd8ffbd113c9c3e456d4cddd52a6fce
+  checksum: f610f1bc4e64d80157b9439b8d9f39ce2a41fc616d44eeab4326cd9ae81a22c704767bc304e38abd93db2da5e613a858af896be83e3889218a8dd8a1515e56ef
   languageName: node
   linkType: hard
 
@@ -13156,8 +13171,9 @@ __metadata:
     "@typescript-eslint/eslint-plugin": ^5.62.0
     "@typescript-eslint/parser": ^5.62.0
     "@vercel/speed-insights": ^1.0.9
-    ag-grid-community: ^32.0.2
-    ag-grid-react: ^32.0.2
+    ag-grid-community: ^30.2.1
+    ag-grid-enterprise: ^31.0.1
+    ag-grid-react: ^30.2.1
     autoprefixer: ^10.4.14
     axios: ^1.4.0
     commitizen: ^4.3.0

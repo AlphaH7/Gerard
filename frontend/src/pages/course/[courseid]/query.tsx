@@ -20,7 +20,7 @@ import {
 } from '@/utils/ApiHelper';
 import Link from 'next/link';
 import AXInput from '@/templates/widgets/AXInput';
-import { generateUUID } from '@/utils/AppHelper';
+import { generateUUID, generateUniqueParticipantId } from '@/utils/AppHelper';
 import { FaStar } from 'react-icons/fa6';
 
 interface IChatElem {
@@ -55,6 +55,8 @@ const CourseChat = () => {
   const [currentChatId, setCurrentChatId] = useState<string>('');
   const [hoveredStar, setHoveredStar] = useState(null);
   const [hoveredStarid, setHoveredStarid] = useState(null);
+  const [checked, setChecked] = React.useState(false);
+  const [newParticipant, setnewParticipant] = React.useState(false);
 
   const getActiveCourses = async () => {
     try {
@@ -84,7 +86,7 @@ const CourseChat = () => {
     try {
       const response = await initChat({
         name,
-        email,
+        // email,
         course_id: x || courseid.toUpperCase(),
       });
       console.log('response - ', response);
@@ -94,6 +96,23 @@ const CourseChat = () => {
       console.log('apierrpr - ', apierror);
     }
   };
+
+  useEffect(() => {
+    const p_id = localStorage.getItem('participant_id');
+    if (!p_id) {
+      console.log('generating p_id ');
+      const new_p_id = generateUniqueParticipantId();
+      setnewParticipant(true);
+      console.log('generated p_id ', new_p_id);
+      const p_id = localStorage.setItem('participant_id', new_p_id);
+      setemail(new_p_id);
+      setname(new_p_id);
+    } else {
+      setemail(p_id);
+      setname(p_id);
+    }
+    console.log('p_id - ', p_id);
+  });
 
   useEffect(() => {
     if (courseid) getCurrentCourseDetails({ courseId: courseid.toUpperCase() });
@@ -115,12 +134,10 @@ const CourseChat = () => {
           body: JSON.stringify({
             course_id: courseid.toUpperCase(),
             question: payload,
-            chat: chatArr.map(
-              data => ({                
-                  "role": data.author === 'AI' ?  "assistant" : 'user',
-                  "content": data.message
-              })
-            ),
+            chat: chatArr.map((data) => ({
+              role: data.author === 'AI' ? 'assistant' : 'user',
+              content: data.message,
+            })),
             message_uuid: messageUUID,
           }),
         },
@@ -327,18 +344,11 @@ const CourseChat = () => {
       <main className="content w-full text-xl flex justify-center grow overflow-auto">
         {viewState === '1' ? (
           <div className="w-full h-full flex flex-col animate-from-bottom items-center justify-center">
-            <form
-              name="signup-form"
-              onSubmit={(e: FormEvent) => {
-                e.preventDefault();
-                initChatSession();
-              }}
-              className="flex flex-col max-w-[900px] px-2 w-full  dark:text-white"
-            >
-              <p className="text-2xl pb-1 font-black">Hi there!</p>
-              <p className="pb-4 text-base">Gerard Welcomes you!</p>
+            <div className="flex flex-col max-w-[900px] px-2 w-full  dark:text-white">
+              <p className="text-2xl pb-1 font-black">{newParticipant ? 'Hi there!' : 'Welcome Back'}</p>
+              <p className="pb-4 text-base">{newParticipant ? 'We are really excited to show you around!' : 'Glad to see you again. Lets get into interesting conversations.'}</p>
 
-              <h3 className='font-black'>Purpose Of The Study</h3>
+              <h3 className="font-black">Purpose Of The Study</h3>
 
               <p className="text-sm py-4">
                 This project requires us to design and develop active learning
@@ -367,24 +377,24 @@ const CourseChat = () => {
                 completion of this research.
               </p>
 
-              <h3 className='font-black'>Consent Form</h3>
+              <h3 className="font-black">Consent Form</h3>
 
               <p className="text-sm py-4">
-              • I have read and understood the information provided about the
+                • I have read and understood the information provided about the
                 study.
               </p>
               <p className="text-sm pb-4">
-              • I understand that my participation is voluntary and that I can
+                • I understand that my participation is voluntary and that I can
                 withdraw at any time without consequences. [Please reach out to
                 us using the above-mentioned email ID’s. We would be happy to
                 help]
               </p>
               <p className="text-sm pb-4">
-              • I understand that my data will be handled in compliance with
+                • I understand that my data will be handled in compliance with
                 GDPR regulations.
               </p>
 
-              <div>
+              {/* <div>
                 <AXInput
                   type={'text'}
                   label={''}
@@ -407,21 +417,40 @@ const CourseChat = () => {
                     setemail(e.target.value);
                   }}
                 />
+              </div> */}
+
+              <div className="text-sm text-center py-4 flex items-center justify-center font-bold">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => {
+                    setChecked(!checked);
+                  }}
+                  className="mr-2 cursor-pointer"
+                />{' '}
+                I consent to being a participant in the project
               </div>
+
+              <div className="font-bold py-4 text-center">
+                Participant # {email}
+              </div>
+
               <button
-                type="submit"
+                type="button"
+                disabled={!checked}
+                onClick={()=>{initChatSession()}}
                 className="w-full bg-black text-white py-3 rounded-sm dark:bg-slate-950 ax-main-shadow-style text-xs mt-4"
               >
                 Lets Go!
               </button>
-            </form>
+            </div>
           </div>
         ) : (
-          <div className="max-w-[900px] overflow-auto h-full w-full flex flex-col justify-end pb-2 animate-from-bottom relative">
-            <div className="h-full overflow-auto px-6 pb-6 flex flex-col justify-end">
+          <div className=" overflow-auto h-full w-full flex flex-col justify-end pb-2 animate-from-bottom relative">
+            <div className="h-full overflow-auto pb-6 flex flex-col justify-end">
               {/* <div className='absolute top-6 right-6 text-base font-bold'>Welcome, Alistier X.</div> */}
 
-              <div className="w-full max-h-full overflow-auto">
+              <div className="w-full max-h-full overflow-auto max-w-[900px]">
                 {chatArr.length === 0 ? (
                   <div></div>
                 ) : (
@@ -429,7 +458,7 @@ const CourseChat = () => {
                     data.author !== 'USER' ? (
                       <div
                         key={data}
-                        className="flex flex-col animate-from-bottom"
+                        className="flex px-4 md:px-0 flex-col animate-from-bottom"
                       >
                         <p className="rounded-2xl max-w-[80%] text-xs mt-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-default-primary500 bg-gray-100">
                           {data.message.split('\n').map((line, index) => (
@@ -467,7 +496,7 @@ const CourseChat = () => {
                             >
                               <FaStar
                                 className={
-                                  'size-5 mx-1 ' +
+                                  'size-4 mx-1 ' +
                                   (data.rating
                                     ? starIndex < data.rating
                                       ? 'text-yellow-500'
@@ -486,7 +515,7 @@ const CourseChat = () => {
                     ) : (
                       <div
                         key={data}
-                        className="flex animate-from-bottom justify-end"
+                        className="flex px-4 md:px-0 animate-from-bottom justify-end"
                         {...(chatArr.length - 1 === i
                           ? { ref: lastMessageRef }
                           : {})}
@@ -507,31 +536,10 @@ const CourseChat = () => {
                 )}
               </div>
             </div>
-            <div className="w-full flex items-center justify-between px-6">
-              {showLoader && (
-                <img
-                  src="/assets/images/loader.svg"
-                  className="h-6 w-16 dark:invert object-cover animate-from-bottom"
-                  alt="Loader"
-                />
-              )}
-              {showError && (
-                <div className="text-xs dark:text-white  font-bold w-full flex items-center animate-from-bottom">
-                  <MdError className="size-8 mr-2" />
 
-                  <div>
-                    <div>Apologies! Something went wrong. </div>
-                    <div>You may continue with the chat</div>
-                  </div>
-                </div>
-              )}
-              <div className=" dark:text-white  text-right text-xs font-bold w-full">
-                Welcome, {name}
-              </div>
-            </div>
             <form
               name="query-form"
-              className="max-h-[30%] px-6 relative"
+              className="max-h-[30%] max-w-[900px] relative"
               onSubmit={(e: FormEvent) => {
                 e.preventDefault();
                 const messageUUID = generateUUID();
@@ -552,22 +560,47 @@ const CourseChat = () => {
                 handleStream(query, messageUUID);
               }}
             >
-              <textarea
-                name="chatquery"
-                value={query}
-                onKeyDown={onEnterPress}
-                onChange={(e: FormEvent) => {
-                  setQuery(e.target.value);
-                }}
-                className="dark:bg-default-primary450 dark:bg-slate-950 focus:border-0 dark:text-white w-full mt-2 ax-input  rounded-lg ax-main-shadow-style"
-                placeholder="Enter a course related question or query to start a discussion"
-              />
-              <button
-                type="submit"
-                className="dark:text-white absolute right-8 top-4"
-              >
-                <RiSendPlaneFill title="Send Message" className="size-6" />
-              </button>
+              <div className="w-full relative px-4 md:px-0">
+                <div className="w-full flex items-center justify-between px-6 absolute -left-5">
+                  {showLoader && (
+                    <img
+                      src="/assets/images/loader.svg"
+                      className="h-6 w-16 dark:invert top-4 relative object-cover animate-from-bottom"
+                      alt="Loader"
+                    />
+                  )}
+                  {showError && (
+                    <div className="text-xs dark:text-white font-bold w-full flex items-center relative animate-from-bottom ">
+                      <MdError className="size-8 mr-2" />
+
+                      <div>
+                        <div>Apologies! Something went wrong. </div>
+                        <div>You may continue with the chat</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className=" dark:text-white  text-right text-xs font-bold w-full">
+                  {newParticipant ? 'Welcome' : 'Welcome Back'}, <br/> 
+                  <p className='text-xxs'>Participant # {name}</p>
+                </div>
+                <textarea
+                  name="chatquery"
+                  value={query}
+                  onKeyDown={onEnterPress}
+                  onChange={(e: FormEvent) => {
+                    setQuery(e.target.value);
+                  }}
+                  className="dark:bg-default-primary450 dark:bg-slate-950 focus:border-0 dark:text-white w-full mt-2 ax-input  rounded-lg ax-main-shadow-style"
+                  placeholder="Enter a course related question or query to start a discussion"
+                />
+                <button
+                  type="submit"
+                  className="dark:text-white absolute right-6 md:right-2 top-12"
+                >
+                  <RiSendPlaneFill title="Send Message" className="size-6" />
+                </button>
+              </div>
             </form>
           </div>
         )}
