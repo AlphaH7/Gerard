@@ -13,6 +13,7 @@ from typing import Optional, List, AsyncGenerator
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 import aiofiles
+import asyncio
 from minio import Minio
 from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType, has_collection
 from auth import get_current_user_id
@@ -29,19 +30,20 @@ from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHan
 from langchain_core.prompts import PromptTemplate
 from fastapi.responses import StreamingResponse
 import json
+from concurrent.futures import ThreadPoolExecutor
 
-# Configure logging
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Database Configuration
+
 DATABASE_URL = os.getenv('DATABASE_URL', "postgresql://postgres:password@db/fastapi_db")
 database = Database(DATABASE_URL)
 metadata = MetaData()
 
 engine = create_engine(DATABASE_URL)
 
-# Milvus Configuration
+
 MILVUS_HOST = os.getenv('MILVUS_HOST', "milvus")
 MILVUS_PORT = os.getenv('MILVUS_PORT', "19530")
 local_embedding_model = "all-MiniLM-L6-v2"
@@ -54,7 +56,7 @@ except Exception as e:
     logger.error(f"Failed to connect to Milvus: {e}")
     raise
 
-# MinIO Configuration
+
 MINIO_ADDRESS = os.getenv('MINIO_ADDRESS', "minio:9000")
 MINIO_ACCESS_KEY = os.getenv('MINIO_ROOT_USER', "minioadmin")
 MINIO_SECRET_KEY = os.getenv('MINIO_ROOT_PASSWORD', "minioadmin")
@@ -68,6 +70,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 app = FastAPI(root_path="/backend/apis")
+executor = ThreadPoolExecutor(max_workers=10)
 
 @app.get("/openapi.json")
 async def get_openapi():
@@ -243,7 +246,7 @@ chat_messages = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("chat_session_id", UUID(as_uuid=True), ForeignKey("chat_sessions.id")),
     Column("message", Text),
-    Column("message_sender", String, nullable=False),  # Must be 'AI' or 'USER'
+    Column("message_sender", String, nullable=False),  
     Column("message_uuid", UUID(as_uuid=True), default=uuid.uuid4),
     Column("created_date", DateTime, default=datetime.utcnow),
     Column("rating", Integer, nullable=True),
@@ -319,7 +322,7 @@ async def delete_document(document_id: int):
 
 @app.post("/upload")
 async def upload_file(course_id: str, user_id: int = Depends(get_current_user_id), file: UploadFile = File(...)):
-    # Save the file to MinIO
+    
     minio_client = Minio(
         MINIO_ADDRESS,
         access_key=MINIO_ACCESS_KEY,
@@ -332,7 +335,7 @@ async def upload_file(course_id: str, user_id: int = Depends(get_current_user_id
     file_location = f"{bucket_name}/documents_uploaded/{file.filename}"
     
     async with aiofiles.open(file.filename, 'wb') as out_file:
-        while content := await file.read(1024):  # Read file in chunks
+        while content := await file.read(1024):  
             await out_file.write(content)
     minio_client.fput_object(bucket_name, file.filename, file.filename)
     
@@ -343,7 +346,7 @@ async def upload_file(course_id: str, user_id: int = Depends(get_current_user_id
     text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
     docs = text_splitter.split_documents(pages)
     
-    # Add course_id to document metadata
+    
     for doc in docs:
         doc.metadata.update({"course_id": course_id})
     
@@ -410,7 +413,7 @@ async def create_chat_session(chat_session: ChatSessionCreate):
         email=chat_session.email,
         name=chat_session.name,
         course_id=chat_session.course_id,
-        created_date=datetime.utcnow()  # Ensure created_date is set explicitly
+        created_date=datetime.utcnow()  
     ).returning(chat_sessions.c.id, chat_sessions.c.created_date, chat_sessions.c.email, chat_sessions.c.name, chat_sessions.c.course_id, chat_sessions.c.chat_heading)
     row = await database.fetch_one(query)
     return row
@@ -507,7 +510,7 @@ async def stream_and_save_ollama_model(question: str, chat: List[dict], context:
         "messages": [
             {
                 "role": "system",
-                "content": f"You are a teaching assistant, your name is Gerard; If someone asks anout yourself of introduces themselves be encouraging and kind to the student to encourage them to ask and resolve as many questions about the course and introduce yourself .Use the Course information provided to answer the question kindly and encouragingly, stating  - I donot know the answer to that based on the Course information provided. If the answer is not found in the Course or local database; always maintain a polite and supportive tone. The context in relevant to this chat is as follows, plz answer only and only on the basis of this information provided ahead and refuse to contribute to an answer if the answer is not related or present in the ahead presented context/course material - {context}"                
+                "content": f"You are a teaching assistant; If someone asks about yourself or introduces themselves, be encouraging and kind to the student to encourage them to ask and resolve as many questions about the course and introduce yourself. Use only the Course information, to answer the question kindly and encouragingly, stating  - I donot know the answer to that based on the Course information provided. If the answer is not found in the Course or local database; always maintain a polite and supportive tone. The context in relevant to this chat is as follows, plz answer only and only on the basis of this information provided ahead and refuse to contribute to an answer if the answer is not related or present in the ahead presented context/course material - {context}"                
             }
         ] + chat + [
             {
@@ -543,7 +546,7 @@ async def stream_and_save_ollama_model(question: str, chat: List[dict], context:
                             yield chunk
                     except json.JSONDecodeError as e:
                         logger.error(f"JSON decode error: {e} - Chunk: {chunk}")
-                        continue  # Skip malformed chunks
+                        continue  
 
             ai_response = ''.join(response_chunks)
             ai_message_query = chat_messages.insert().values(
@@ -565,11 +568,11 @@ async def stream_and_save_ollama_model(question: str, chat: List[dict], context:
             logger.error(f"Unexpected error: {e}")
             raise HTTPException(status_code=500, detail="Internal Server Error")
         
-async def classifyTopic(question: str, course_id: str) -> str:
+
+async def classifyPrompt(question: str, course_id: str, chat_session_id: str, msguuid: str):
     query = course_topics.select().where(course_topics.c.course_id == course_id)
     topics = await database.fetch_all(query)
     
-    # Log the entire topics object
     logger.info(f"Course topics for course_id {course_id}: {topics}")
     
     system_message = """
@@ -607,7 +610,6 @@ async def classifyTopic(question: str, course_id: str) -> str:
     - Answer strictly in the format and maintaining only the topics and types given, or for any other non classifiable prompt or text just return: Other 
     """
     
-    # Log the constructed system message
     logger.info(f"Constructed system message: {system_message}")
 
     prompt_messages = [
@@ -618,10 +620,6 @@ async def classifyTopic(question: str, course_id: str) -> str:
         {"role": "assistant", "content": f"{topics[0].topic_name}, {topics[1].topic_name} //// Conceptual Understanding, Analytical"},
         {"role": "user", "content": f"{topics[1].topic_description}"},
         {"role": "assistant", "content": f"{topics[1].topic_name} //// Resource Requests, Application"},
-        # {"role": "user", "content": "What are Python lists and how are they defined?"},
-        # {"role": "assistant", "content": "Python Lists, Python Introductio //// Conceptual Understanding"},
-        # {"role": "user", "content": "Explain the underlying data structure of Python lists."},
-        # {"role": "assistant", "content": "Python Lists, Conceptual Understanding: Theoretical Questions //// Conceptual Understanding"},
         {"role": "user", "content": question}
     ]
     
@@ -648,10 +646,19 @@ async def classifyTopic(question: str, course_id: str) -> str:
             response_data = response.json()
             classification = response_data['message']['content']
             
-            # Log the classification result
             logger.info(f"Classification result: {classification}")
-            
-            return classification
+
+            user_message_query = chat_messages.insert().values(
+                chat_session_id=chat_session_id,
+                message=question,
+                message_sender='USER',
+                created_date=datetime.utcnow(),
+                message_uuid=msguuid,
+                topic_classification=classification
+            )
+            await database.execute(user_message_query)
+            logger.info(f"Saved prompt to DB: {classification}")
+
         except httpx.RequestError as exc:
             logger.error(f"An error occurred while requesting {exc.request.url!r}.")
             raise HTTPException(status_code=500, detail="Error communicating with the classification service.")
@@ -659,6 +666,9 @@ async def classifyTopic(question: str, course_id: str) -> str:
             logger.error(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}.")
             raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text)
 
+# Updated classifyTopic function to be async
+async def classifyTopic(question: str, course_id: str, chat_session_id: str, msguuid: str):
+    await classifyPrompt(question, course_id, chat_session_id, msguuid)
 
 @app.post("/chat")
 async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
@@ -667,20 +677,9 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     question = request.question
     msguuid = request.message_uuid
 
-    classification = await classifyTopic(question, course_id)
-
-    # Insert user message into the database (mocked)
-    user_message_query = chat_messages.insert().values(
-        chat_session_id=chat_session_id,
-        message=question,
-        message_sender='USER',
-        created_date=datetime.utcnow(),
-        message_uuid=msguuid,
-        topic_classification=classification
-    )
-    await database.execute(user_message_query)
-
-    # Initialize embeddings and Milvus connection
+    # Run classifyTopic asynchronously to avoid blocking
+    asyncio.create_task(classifyTopic(question, course_id, chat_session_id, msguuid))
+    
     embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
     vector_db = Milvus(
         embeddings,
@@ -688,17 +687,12 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
     )
 
-    # Perform similarity search with filter on course_id
     relevant_docs = vector_db.similarity_search(question, k=5)
 
-    # print(relevant_docs)
-    
-    # Prepare context for response
     context = ""
     for doc in relevant_docs:
         context += f"- {doc.page_content}\n"
 
-    # Return a streaming response
     return StreamingResponse(stream_and_save_ollama_model(question, chat, context, chat_session_id, msguuid), media_type="text/plain")
 
 
@@ -706,13 +700,24 @@ async def stream_and_save_ollama_model_garchat(question: str, context: str, chat
     url = OLLAMA_ENDPOINT
     payload = {
         "model": "llama3",
-        "prompt": f"You are a teaching assistant. Use the following pieces of context to answer the question at the end. If you don't find the answer in the context provided, mention that the answer you are providing is from your knowledge. Be kind and follow all teaching principles. Always answer gently and in an encouraging way. Use the word Course instead of context in your responses.\n\n{context}\n\nQuestion: {question}\nHelpful Answer: ",
-        "stream": True
+        "messages": [
+            {
+                "role": "system",
+                "content": f"You are a teaching assistant; If someone asks about yourself or introduces themselves, be encouraging and kind to the student to encourage them to ask and resolve as many questions about the course and introduce yourself. Use only the Course information, to answer the question kindly and encouragingly, stating  - I donot know the answer to that based on the Course information provided. If the answer is not found in the Course or local database; always maintain a polite and supportive tone. The context in relevant to this chat is as follows, plz answer only and only on the basis of this information provided ahead and refuse to contribute to an answer if the answer is not related or present in the ahead presented context/course material - {context}"                
+            }
+        ] + chat + [
+            {
+                "role": "user",
+                "content": question
+            }
+        ],
     }
 
     headers = {
         "Content-Type": "application/json"
     }
+
+    logger.info( payload)
 
     response_chunks = []
 
@@ -720,7 +725,7 @@ async def stream_and_save_ollama_model_garchat(question: str, context: str, chat
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            async with client.stream("POST", url, json=payload, headers=headers) as response:
+            async with client.stream("POST", url, json=payload, headers=headers) as response:                
                 if response.status_code != 200:
                     detail = await response.text()
                     logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
@@ -729,18 +734,18 @@ async def stream_and_save_ollama_model_garchat(question: str, context: str, chat
                     logger.info(f"Received chunk: {chunk}")
                     try:
                         chunk_data = json.loads(chunk)
-                        if 'response' in chunk_data:
-                            response_chunks.append(chunk_data['response'])
+                        if 'message' in chunk_data:
+                            response_chunks.append(chunk_data['message']['content'])
                             yield chunk
                     except json.JSONDecodeError as e:
                         logger.error(f"JSON decode error: {e} - Chunk: {chunk}")
-                        continue  # Skip malformed chunks
+                        continue  
 
             ai_response = ''.join(response_chunks)
             ai_message_query = chat_messages.insert().values(
                 chat_session_id=chat_session_id,
                 message=ai_response,
-                message_sender='GAR',
+                message_sender='RAG',
                 created_date=datetime.utcnow(),
                 message_uuid=message_uuid
             )
@@ -759,19 +764,13 @@ async def stream_and_save_ollama_model_garchat(question: str, context: str, chat
 @app.post("/garchat")
 async def garchat(request: ChatRequest, chat_session_id: uuid.UUID):
     course_id = request.course_id
+    chat = request.chat
     question = request.question
+    msguuid = request.message_uuid
 
-    # Insert user message into the database (mocked)
-    user_message_query = chat_messages.insert().values(
-        chat_session_id=chat_session_id,
-        message=question,
-        message_sender='USER',
-        created_date=datetime.utcnow(),
-        message_uuid=request.message_uuid
-    )
-    await database.execute(user_message_query)
-
-    # Initialize embeddings and Milvus connection
+    # Run classifyTopic asynchronously to avoid blocking
+    asyncio.create_task(classifyTopic(question, course_id, chat_session_id, msguuid))
+    
     embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
     vector_db = Milvus(
         embeddings,
@@ -779,15 +778,11 @@ async def garchat(request: ChatRequest, chat_session_id: uuid.UUID):
         connection_args={"host": MILVUS_HOST, "port": MILVUS_PORT}
     )
 
-    # Perform similarity search with filter on course_id
-    relevant_docs = vector_db.similarity_search(question, k=25)
+    relevant_docs = vector_db.similarity_search(question, k=5)
 
-    print(relevant_docs)
-    
-    # Prepare context for response
     context = ""
     for doc in relevant_docs:
         context += f"- {doc.page_content}\n"
 
-    # Return a streaming response
-    return StreamingResponse(stream_and_save_ollama_model_garchat(question, context, chat_session_id, request.message_uuid), media_type="text/plain")
+    return StreamingResponse(stream_and_save_ollama_model_garchat(question, chat, context, chat_session_id, msguuid), media_type="text/plain")
+
