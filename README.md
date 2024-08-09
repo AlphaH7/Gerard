@@ -12,6 +12,7 @@ A Retrieval Augmented Generator based Education tool, that has a role based logi
 - Minio (Document upload caching on server)
 - Postgres SQL db (for user data collection support)
 - React JS - Next JS (For chat support, teacher login and file upload UX support)
+- Autoscalable Multi model Ollama Service
 
 ## Setup & Running the project
 
@@ -28,12 +29,39 @@ docker-compose up --build
 ```
 If all services run well and are up you must see the following on docker desktop - 
 
-![image](https://github.com/AlphaH7/Gerard/assets/22297072/d5d49b78-73b2-4b47-894e-fba60ccac647)
+
+
 
 ## Application Preview - 
 
-<img width="1800" alt="image" src="https://github.com/AlphaH7/Gerard/assets/22297072/b436a71d-2bbe-43fa-aa42-1ad8bc5c861a">
+<img width="1800" alt="image" src="https://github.com/user-attachments/assets/3ae25096-09b0-4de4-b04c-15f17a39c286">
 
+
+## Analytics Preview - 
+
+You can access analytics preview at /analytics route
+
+<img width="1800" alt="image" src="https://github.com/user-attachments/assets/b19d8658-b080-4082-b806-b7229f1df424">
+
+<img width="1800" alt="image" src="https://github.com/user-attachments/assets/4155c71a-8e1e-4b34-ae56-67ae33187a14">
+
+<img width="1800" alt="image" src="https://github.com/user-attachments/assets/29bb3594-97a3-4fa5-aa7e-c3c20b50c15e">
+
+<img width="1800" alt="image" src="https://github.com/user-attachments/assets/cff0578e-0719-4dd7-8761-9441a9bf1ee2">
+
+
+## Courses Preview - 
+
+You can access created courses, topics and uploded contents at /courses route
+
+<img width="1800" alt="image" src="https://github.com/user-attachments/assets/72e05f58-0d32-4868-a3a8-8e66fa55ae44">
+
+
+## API Doc - 
+
+You can access the swagger API doc at /backend/apis/docs route
+
+<img width="1800" alt="image" src="https://github.com/user-attachments/assets/a51b981e-9538-44af-852c-a7f7ba293889">
 
 
 ## File Heirarchy
@@ -70,6 +98,10 @@ Gerard/
 │
 └── docker-compose.yml
 ```
+
+## License
+
+This project is under MIT License. Please read the same carefully. Lets contribute and access Open source software responsibly. 
   
 ## Author
 
