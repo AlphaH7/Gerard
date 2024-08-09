@@ -318,6 +318,7 @@ const Analytics = () => {
                         Course Topics
                       </h2>
                     )}
+                    <div className='overflow-auto'>
                     {!showTopicCrud &&
                       courseTopics.length !== 0 &&
                       courseTopics
@@ -327,7 +328,7 @@ const Analytics = () => {
                             className="w-full text-sm flex animate-on-load mb-4"
                             key={data.id}
                           >
-                            <p className="font-bold"># {++i}</p>
+                            <p className="font-bold w-8"># {++i}</p>
                             <div className="pl-4 grow">
                               <p className="font-semibold">{data.topic_name}</p>
                               <p>{data.topic_description}</p>
@@ -339,6 +340,7 @@ const Analytics = () => {
                             </div>
                           </div>
                         ))}
+                    </div>
                     {showTopicCrud && (
                       <div className="w-full pt-4  bg-opacity-30 mt-2 rounded-lg animate-on-load">
                         <h2 className="text-2xl font-semibold">

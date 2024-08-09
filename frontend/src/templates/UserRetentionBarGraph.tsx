@@ -16,7 +16,7 @@ type ChatSession = {
 
 const getSessionCounts = (sessions: ChatSession[]) => {
   const sessionCounts = sessions.reduce((counts, session) => {
-    counts[session.email] = (counts[session.email] || 0) + 1;
+    counts[session.name] = (counts[session.name] || 0) + 1;
     return counts;
   }, {});
 

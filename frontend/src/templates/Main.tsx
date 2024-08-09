@@ -82,10 +82,10 @@ const Analytics = ({ children, title, description }) => {
               <IoMdAnalytics className="mr-2 size-6 mr-4" />
               Analytics
             </Link>
-            <Link href="/sessions" className="text-white py-3 w-full flex pl-4">
+            {/* <Link href="/sessions" className="text-white py-3 w-full flex pl-4">
               <FaUsers className="mr-2 size-6 mr-4" />
               Participant Sessions
-            </Link>
+            </Link> */}
             <Link href="/messages" className="text-white py-3 w-full flex pl-4">
               <BsChatRightText className="mr-2 size-6 mr-4" />
               Participant Messages

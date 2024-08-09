@@ -7,7 +7,7 @@ export default async function handler(req: any, res: any) {
     console.log(process.env.BACKEND_URL, req.body);
 
     const response = await apiClient.get(
-      `course_topics`,
+      `course_topics?skip=0&limit=30`,
       {
         headers: {
           'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { AppConfig } from '@/utils/AppConfig';
+import { VscFeedback } from 'react-icons/vsc';
 import { useRouter } from 'next/router';
 import { Within } from '@theme-toggles/react';
 import { Meta } from '@/layouts/Meta';
@@ -22,7 +23,7 @@ import Link from 'next/link';
 import AXInput from '@/templates/widgets/AXInput';
 import { generateUUID, generateUniqueParticipantId } from '@/utils/AppHelper';
 import { FaStar } from 'react-icons/fa6';
-import Markdown from 'react-markdown'
+import Markdown from 'react-markdown';
 
 interface IChatElem {
   message: string;
@@ -123,9 +124,14 @@ const CourseChat = () => {
     setshowLoader(true);
     console.log('payload - ', payload);
     // if(payload.trim() === '')return;
+    let chat_type = 'chat'
+    if(chatArr.length > 3){
+      const randomNum = Math.random();
+      chat_type =  randomNum < 0.5 ? 'chat' : 'garchat';
+    }
     try {
       const response = await fetch(
-        `http://localhost:6789/backend/apis/chat?chat_session_id=${currentChatId}`,
+        `https://tarpon-fresh-suitably.ngrok-free.app/backend/apis/${chat_type}?chat_session_id=${currentChatId}`,
         {
           method: 'POST',
           headers: {
@@ -163,7 +169,6 @@ const CourseChat = () => {
         buffer = lines.pop()!; // Save the incomplete line for the next chunk
 
         lines.forEach((line: string) => {
-          // if (line.trim() === '') return;
           try {
             const json = JSON.parse(line);
             const text = json.message.content;
@@ -173,12 +178,7 @@ const CourseChat = () => {
               previousText += text;
 
               // Remove duplicated words from the end of the previous text
-              const uniqueText = previousText
-                .split(' ')
-                .filter((word, index, arr) => {
-                  return word !== arr[index - 1];
-                })
-                .join(' ');
+              const uniqueText = previousText.replace(/\b(\w+)\s+\1\b/g, '$1');
 
               setChatArr((prev) => {
                 const cpprev = [...prev];
@@ -187,7 +187,7 @@ const CourseChat = () => {
                   return cpprev;
                 } else {
                   cpprev.push({
-                    message: text,
+                    message: uniqueText,
                     author: 'AI',
                     timeStamp: '',
                     message_uuid: messageUUID,
@@ -204,33 +204,32 @@ const CourseChat = () => {
 
       // Process any remaining buffer content
       if (buffer.trim() !== '') {
-        const json = JSON.parse(buffer);
-        const text = json.response;
-        if (!previousText.endsWith(text)) {
-          previousText += text;
+        try {
+          const json = JSON.parse(buffer);
+          const text = json.message.content;
+          if (!previousText.endsWith(text)) {
+            previousText += text;
 
-          // Remove duplicated words from the end of the previous text
-          const uniqueText = previousText
-            .split(' ')
-            .filter((word, index, arr) => {
-              return word !== arr[index - 1];
-            })
-            .join(' ');
+            // Remove duplicated words from the end of the previous text
+            const uniqueText = previousText.replace(/\b(\w+)\s+\1\b/g, '$1');
 
-          setChatArr((prev) => {
-            const cpprev = [...prev];
-            if (cpprev[cpprev.length - 1]?.author === 'AI') {
-              cpprev[cpprev.length - 1].message = uniqueText;
-              return cpprev;
-            } else {
-              cpprev.push({
-                message: text,
-                author: 'AI',
-                timeStamp: '',
-              });
-              return cpprev;
-            }
-          });
+            setChatArr((prev) => {
+              const cpprev = [...prev];
+              if (cpprev[cpprev.length - 1]?.author === 'AI') {
+                cpprev[cpprev.length - 1].message = uniqueText;
+                return cpprev;
+              } else {
+                cpprev.push({
+                  message: uniqueText,
+                  author: 'AI',
+                  timeStamp: '',
+                });
+                return cpprev;
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error parsing buffer:', buffer, error);
         }
       }
 
@@ -259,7 +258,7 @@ const CourseChat = () => {
   }, [chatArr]);
 
   const onEnterPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !showLoader) {
       e.preventDefault();
       if (query && query.trim() !== '') {
         console.log(query);
@@ -302,6 +301,55 @@ const CourseChat = () => {
     }
   };
 
+  const renderAIMessages = (data: any, i: number) => {
+    return (
+      <div
+        key={data}
+        className="flex px-4 md:px-0 flex-col animate-from-bottom"
+      >
+        <p className="chat-reply-ctr rounded-2xl max-w-full text-xs mt-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-default-primary500 bg-gray-100">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {data.message}
+          </ReactMarkdown>
+        </p>
+        <div
+          {...(chatArr.length - 1 === i ? { ref: lastMessageRef } : {})}
+          className="flex justify-end max-w-full mb-6 mt-2"
+        >
+          {[0, 1, 2, 3, 4].map((starIndex) => (
+            <button
+              type="button"
+              onMouseEnter={() => {
+                setHoveredStar(starIndex);
+                setHoveredStarid(data.message_uuid);
+              }}
+              onMouseLeave={() => {
+                setHoveredStar(null);
+                setHoveredStarid(null);
+              }}
+              onClick={() => setSelectedStar(starIndex + 1, data.message_uuid)}
+            >
+              <FaStar
+                className={
+                  'size-4 mx-1 ' +
+                  (data.rating
+                    ? starIndex < data.rating
+                      ? 'text-yellow-500'
+                      : ''
+                    : hoveredStar !== null &&
+                      starIndex <= hoveredStar &&
+                      hoveredStarid === data.message_uuid
+                    ? 'text-yellow-500 opacity-70'
+                    : 'grey')
+                }
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       key={courseid}
@@ -325,19 +373,21 @@ const CourseChat = () => {
             <Logo />
           </div>
 
-          <div className="w-full text-right grow rounded-lg dark:text-white  ax-main-shadow-style">
-            <h2 className="rounded-lg pt-3 px-4 font-bold">
-              <span className="font-bold">
-                {courseid && courseid.toUpperCase()}
-              </span>{' '}
-              - {currentcourses?.course_name}
-            </h2>
-            {/* <p className=" pt-0 text-xs">
+          <div className="flex">
+            <div className="w-full text-right grow rounded-lg dark:text-white  ax-main-shadow-style">
+              <h2 className="rounded-lg pt-3 px-4 font-bold">
+                <span className="font-bold">
+                  {courseid && courseid.toUpperCase()}
+                </span>{' '}
+                - {currentcourses?.course_name}
+              </h2>
+              {/* <p className=" pt-0 text-xs">
               {currentcourses?.course_description}
             </p> */}
-            <p className="px-4 mb-4 pt-2 text-xs">
-              <span className="font-bold">Course lead</span> - Prof. AX
-            </p>
+              <p className="px-4 mb-4 pt-2 text-xs">
+                <span className="font-bold">Course lead</span> - Prof. AX
+              </p>
+            </div>
           </div>
         </div>
       </nav>
@@ -346,53 +396,61 @@ const CourseChat = () => {
         {viewState === '1' ? (
           <div className="w-full h-full flex flex-col animate-from-bottom items-center justify-center">
             <div className="flex flex-col max-w-[900px] px-2 w-full  dark:text-white">
-              <p className="text-2xl pb-1 font-black">{newParticipant ? 'Hi there!' : 'Welcome Back'}</p>
-              <p className="pb-4 text-base">{newParticipant ? 'We are really excited to show you around!' : 'Glad to see you again. Lets get into interesting conversations.'}</p>
-
-              <h3 className="font-black">Purpose Of The Study</h3>
-
-              <p className="text-sm py-4">
-                This project requires us to design and develop active learning
-                tools which can support students in engaging with active
-                learning techniques in computing science. We are developing a
-                system that helps answer course and academic related questions
-                for students, in turn empowering active learning techniques. The
-                data collected from this experiment will be used to process the
-                feasibility and efficacy of the active learning toolkit
-                developed and judge the best scenario for the use of RAG
-                (Retrieval-Augmented Generation) chatbot and GAR (Generative
-                Augmented Retrieval) chatbots in education.
+              <p className="text-2xl pb-1 font-black">
+                {newParticipant ? 'Hi there!' : 'Welcome Back'}
               </p>
-              <p className="text-sm pb-4">
-                Feel free to select a course of your choice and converse as much
-                with the application and rate the answers. We request you to
-                share a review about your interaction using the feedback form
-                provided on the application.
+              <p className="pb-4 text-base">
+                {newParticipant
+                  ? 'We are really excited to show you around!'
+                  : 'Glad to see you again. Lets get into interesting conversations.'}
               </p>
-              <p className="text-sm pb-4">
-                The data that will be collected for the purpose of this research
-                includes, conversation messages, messages ratings, user
-                experience feedback, user consent and name. This application
-                follows all GDPR regulations and policies of data and privacy
-                protection. The data collected, will be discarded towards the
-                completion of this research.
+              <h3 className="font-black">Participant Information Form</h3>
+              <p className="text-sm py-2 mt-2">
+                We shared a copy of this over the Invitation Email. Please click
+                below to view the same.
               </p>
-
+              <a
+                href="/assets/participant_form.pdf"
+                target="_blank"
+                className="text-sm pb-2 mb-2 text-blue-300 underline"
+              >
+                Click to view Participant Form
+              </a>
               <h3 className="font-black">Consent Form</h3>
-
               <p className="text-sm py-4">
-                • I have read and understood the information provided about the
-                study.
+                • I confirm that I have read and understood the Participant
+                Information Sheet for the above project and the researcher has
+                answered any queries to my satisfaction.
               </p>
               <p className="text-sm pb-4">
-                • I understand that my participation is voluntary and that I can
-                withdraw at any time without consequences. [Please reach out to
-                us using the above-mentioned email ID’s. We would be happy to
-                help]
+                • I confirm that I have read and understood the Privacy Notice
+                for Participants in Research Projects and understand how my
+                personal information will be used and what will happen to it
+                (i.e. how it will be stored and for how long).
               </p>
               <p className="text-sm pb-4">
-                • I understand that my data will be handled in compliance with
-                GDPR regulations.
+                • I understand that my participation is voluntary and that I am
+                free to withdraw from the project at any time, up to the point
+                of completion, without having to give a reason and without any
+                consequences.
+              </p>
+              <p className="text-sm pb-4">
+                • I understand that I can request the withdrawal from the study
+                of some personal information and that whenever possible
+                researchers will comply with my request.
+              </p>
+              <p className="text-sm pb-4">
+                • I understand that anonymised data (i.e. data that do not
+                identify me personally) cannot be withdrawn once they have been
+                included in the study.
+              </p>
+              <p className="text-sm pb-4">
+                • I understand that any information recorded in the research
+                will remain confidential and no information that identifies me
+                will be made publicly available.
+              </p>
+              <p className="text-sm pb-4">
+                • I consent to being a participant in the project.
               </p>
 
               {/* <div>
@@ -439,7 +497,9 @@ const CourseChat = () => {
               <button
                 type="button"
                 disabled={!checked}
-                onClick={()=>{initChatSession()}}
+                onClick={() => {
+                  initChatSession();
+                }}
                 className="w-full bg-black text-white py-3 rounded-sm dark:bg-slate-950 ax-main-shadow-style text-xs mt-4"
               >
                 Lets Go!
@@ -457,59 +517,7 @@ const CourseChat = () => {
                 ) : (
                   chatArr.map((data: IChatElem, i: number) =>
                     data.author !== 'USER' ? (
-                      <div
-                        key={data}
-                        className="flex px-4 md:px-0 flex-col animate-from-bottom"
-                      >
-                        <p className="chat-reply-ctr rounded-2xl max-w-[80%] text-xs mt-6 text-left rounded-bl-none bg-@theme-primary dark:bg-@theme-primary200 dark:text-white text-black px-4 py-2 font-normal dark:bg-default-primary500 bg-gray-100">
-                          
-                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                {data.message}
-                              </ReactMarkdown>
-                          
-                        </p>
-                        <div
-                          {...(chatArr.length - 1 === i
-                            ? { ref: lastMessageRef }
-                            : {})}
-                          className="flex justify-end max-w-[80%] mb-6 mt-2"
-                        >
-                          {[0, 1, 2, 3, 4].map((starIndex) => (
-                            <button
-                              type="button"
-                              onMouseEnter={() => {
-                                setHoveredStar(starIndex);
-                                setHoveredStarid(data.message_uuid);
-                              }}
-                              onMouseLeave={() => {
-                                setHoveredStar(null);
-                                setHoveredStarid(null);
-                              }}
-                              onClick={() =>
-                                setSelectedStar(
-                                  starIndex + 1,
-                                  data.message_uuid,
-                                )
-                              }
-                            >
-                              <FaStar
-                                className={
-                                  'size-4 mx-1 ' +
-                                  (data.rating
-                                    ? starIndex < data.rating
-                                      ? 'text-yellow-500'
-                                      : ''
-                                    : hoveredStar !== null &&
-                                      starIndex <= hoveredStar &&
-                                      hoveredStarid === data.message_uuid
-                                    ? 'text-yellow-500 opacity-70'
-                                    : 'grey')
-                                }
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      renderAIMessages(data, i)
                     ) : (
                       <div
                         key={data}
@@ -579,19 +587,28 @@ const CourseChat = () => {
                   )}
                 </div>
                 <div className=" dark:text-white  text-right text-xs font-bold w-full">
-                  {newParticipant ? 'Welcome' : 'Welcome Back'}, <br/> 
-                  <p className='text-xxs'>Participant # {name}</p>
+                  {newParticipant ? 'Welcome' : 'Welcome Back'}, <br />
+                  <p className="text-xxs">Participant # {name}</p>
                 </div>
-                <textarea
-                  name="chatquery"
-                  value={query}
-                  onKeyDown={onEnterPress}
-                  onChange={(e: FormEvent) => {
-                    setQuery(e.target.value);
-                  }}
-                  className="dark:bg-default-primary450 dark:bg-slate-950 focus:border-0 dark:text-white w-full mt-2 ax-input  rounded-lg ax-main-shadow-style"
-                  placeholder="Enter a course related question or query to start a discussion"
-                />
+                <div className="flex">
+                  <Link target="_blank" href="https://forms.office.com/e/spSqceinGS" className="flex items-center text-xs font-bold mr-4 bg-black h-[2.8rem] mt-2 text-white px-2 rounded-lg">
+                    <VscFeedback className="w-6 h-6 mr-2" />
+                    <div className='flex flex-col justify-start items-start'>
+                      <div>Provide</div>
+                      <div>feedback</div>
+                    </div>
+                  </Link>
+                  <textarea
+                    name="chatquery"
+                    value={query}
+                    onKeyDown={onEnterPress}
+                    onChange={(e: FormEvent) => {
+                      setQuery(e.target.value);
+                    }}
+                    className="dark:bg-default-primary450 dark:bg-slate-950 focus:border-0 dark:text-white w-full mt-2 ax-input  rounded-lg ax-main-shadow-style main-textarea"
+                    placeholder="Enter a course related question or query to start a discussion"
+                  />
+                </div>
                 <button
                   type="submit"
                   className="dark:text-white absolute right-6 md:right-2 top-12"

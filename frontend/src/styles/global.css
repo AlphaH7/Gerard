@@ -278,7 +278,10 @@ div.no-animation * {
   height: 2.8rem;
   transition: all 0.5s;
   border: 1px solid;
-  @apply border-slate-950
+  @apply border-slate-950;
+  &.main-textarea{
+    padding-right: 40px
+  }
 }
 
 textarea.ax-input-no-height{
@@ -535,12 +538,14 @@ label {
   }
   pre{
     @apply bg-slate-950;
+    @apply overflow-auto;
     @apply p-4;
     @apply rounded-lg;
   }
   p{
     code{
       @apply bg-slate-950;
+      @apply overflow-auto;
       @apply py-1;
       @apply px-2;
       @apply mx-1;

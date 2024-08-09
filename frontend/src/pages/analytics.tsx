@@ -18,6 +18,7 @@ import {
   initChat,
   getSessionsByCourse,
   getMessagesByCourse,
+  getcoursetopics,
 } from '@/utils/ApiHelper';
 import Link from 'next/link';
 import AXInput from '@/templates/widgets/AXInput';
@@ -51,7 +52,7 @@ import { FaBalanceScale } from 'react-icons/fa';
 export type ChatSession = {
   id: string;
   created_date: string;
-  email: string;
+  name: string;
   name: string;
   course_id: string;
   chat_heading: string | null;
@@ -60,9 +61,10 @@ export type ChatSession = {
 const Analytics = () => {
   const [courses, setCourses] = useState<ICourse[]>([]);
   const [selectedCourse, setselectedCourse] = useState<null | string>(null);
-  const [messages, setmessages] = useState<null | []>(null);
+  const [messages, setmessages] = useState<null | []>([]);
   const [sessions, setsessions] = useState<null | []>(null);
   const [uniqueUsers, setuniqueUsers] = useState<{}>(0);
+  const [courseTopics, setCourseTopics] = useState<Any[]>([]);
 
   const getActiveCourses = async () => {
     try {
@@ -74,6 +76,16 @@ const Analytics = () => {
         getmessagesByCourse(response[0].course_id);
         getsessionsByCourse(response[0].course_id);
       }
+    } catch (apierror: any) {
+      console.log('apierrpr - ', apierror);
+    }
+  };
+
+  const getCourseTopics = async () => {
+    try {
+      const response = await getcoursetopics();
+      console.log('response - ', response);
+      setCourseTopics(response);
     } catch (apierror: any) {
       console.log('apierrpr - ', apierror);
     }
@@ -101,6 +113,8 @@ const Analytics = () => {
 
   useEffect(() => {
     getActiveCourses();
+    getCourseTopics();
+
   }, []);
 
   useEffect(() => {
@@ -116,11 +130,11 @@ const Analytics = () => {
       let intmap = {};
       console.log('sessions - ', sessions);
       sessions.forEach((data) => {
-        if (intmap[data.email]) {
-          intmap[data.email].ids.push(data.id);
-          intmap[data.email].count++;
+        if (intmap[data.name]) {
+          intmap[data.name].ids.push(data.id);
+          intmap[data.name].count++;
         } else {
-          intmap[data.email] = {
+          intmap[data.name] = {
             count: 1,
             ids: [data.id],
           };
@@ -231,7 +245,7 @@ const Analytics = () => {
               <div className="">
                 <div className="higcharts-ctr flex flex-col items-center rounded-lg bg-default-primary100 p-2 pb-4 text-black dark:bg-slate-950 dark:text-white">
                   <div className="my-2 flex w-full items-center justify-center">
-                    <FaStar className="mr-4 size-10" />
+                    <FaUserAstronaut className="mr-4 size-10" />
                     <AnimatedNumber>
                       <span className="text-4xl">
                         {Object.keys(uniqueUsers).length}
@@ -313,7 +327,7 @@ const Analytics = () => {
                   <div className="my-2 flex w-full items-center justify-center">
                     <TbCategoryFilled className="mr-4 size-10" />
                     <AnimatedNumber>
-                      <span className="text-4xl">5</span>
+                      <span className="text-4xl">{courseTopics.length}</span>
                     </AnimatedNumber>
                   </div>
                   <div className="text-left text-xs">Course Topics Added</div>
@@ -347,7 +361,7 @@ const Analytics = () => {
               </div>
             </div>
 
-            <UniqueUserLineGraph />
+            {(messages && messages.length !== 0 && courseTopics) && <UniqueUserLineGraph {...{messages, topics: courseTopics, selectedCourse}}/>}
 
             <div className=" grid grid-cols-1 gap-4 md:grid-cols-2">
               <ABTestPiGraphs {...{ sessions: messages, type: 'RAG' }} />

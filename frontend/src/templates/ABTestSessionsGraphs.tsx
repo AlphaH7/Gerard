@@ -70,7 +70,7 @@ const ABTestSessionsGraphs: React.FC = ({sessions}) => {
       },
     },
     title: {
-      text: 'User Sessions Per Day',
+      text: 'User Messages By Day',
       align: 'left',
       style: {
         color: darkMode ? '#fff' : '#000',
@@ -106,13 +106,13 @@ const ABTestSessionsGraphs: React.FC = ({sessions}) => {
     series: [
       {
         type: 'line',
-        name: 'GAR Sessions',
+        name: 'GAR Messages',
         data: gardata,
         color: '#d0f96b',
       },
       {
         type: 'line',
-        name: 'RAG Sessions',
+        name: 'RAG Messages',
         data: ragdata,
         color: '#a6a6d0',
       },

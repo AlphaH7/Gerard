@@ -503,14 +503,22 @@ async def add_rating(message_uuid: uuid.UUID, rating: int):
     await database.execute(query)
     return {"detail": "Rating added"}
 
-async def stream_and_save_ollama_model(question: str, chat: List[dict], context: str, chat_session_id: uuid.UUID, message_uuid: str) -> AsyncGenerator[str, None]:
+async def stream_and_save_ollama_model(question: str, chat: List[dict], context: str, chat_session_id: uuid.UUID, message_uuid: str, chat_type: str) -> AsyncGenerator[str, None]:
     url = OLLAMA_ENDPOINT
     payload = {
         "model": "llama3",
         "messages": [
             {
                 "role": "system",
-                "content": f"You are a teaching assistant; If someone asks about yourself or introduces themselves, be encouraging and kind to the student to encourage them to ask and resolve as many questions about the course and introduce yourself. Use only the Course information, to answer the question kindly and encouragingly, stating  - I donot know the answer to that based on the Course information provided. If the answer is not found in the Course or local database; always maintain a polite and supportive tone. The context in relevant to this chat is as follows, plz answer only and only on the basis of this information provided ahead and refuse to contribute to an answer if the answer is not related or present in the ahead presented context/course material - {context}"                
+                "content": """
+                You are a teaching assistant. If a student asks about yourself or introduces themselves, respond in an encouraging and kind manner to foster a supportive learning environment.
+                When answering questions, use only the provided course information. If the answer is not found in the course information or local database, politely decline by stating,
+                'I don't know the answer to that based on the course information provided.' Always maintain a polite and supportive tone.
+                Under no circumstances should you provide information that is not included in the provided course information or local database.
+                Also Under no circumstances you will answer a question about an assignment or exam. If you are asked, politely decline to do so.
+                The context relevant to this chat is as follows. Please answer only based on the information provided and politely refuse to answer if the information is not related or present in the context/course material:
+                {context}
+                """
             }
         ] + chat + [
             {
@@ -519,6 +527,7 @@ async def stream_and_save_ollama_model(question: str, chat: List[dict], context:
             }
         ],
     }
+
 
     headers = {
         "Content-Type": "application/json"
@@ -552,7 +561,7 @@ async def stream_and_save_ollama_model(question: str, chat: List[dict], context:
             ai_message_query = chat_messages.insert().values(
                 chat_session_id=chat_session_id,
                 message=ai_response,
-                message_sender='RAG',
+                message_sender=chat_type,
                 created_date=datetime.utcnow(),
                 message_uuid=message_uuid
             )
@@ -693,73 +702,91 @@ async def chat(request: ChatRequest, chat_session_id: uuid.UUID):
     for doc in relevant_docs:
         context += f"- {doc.page_content}\n"
 
-    return StreamingResponse(stream_and_save_ollama_model(question, chat, context, chat_session_id, msguuid), media_type="text/plain")
+    return StreamingResponse(stream_and_save_ollama_model(question, chat, context, chat_session_id, msguuid, 'RAG'), media_type="text/plain")
 
 
-async def stream_and_save_ollama_model_garchat(question: str, context: str, chat_session_id: uuid.UUID, message_uuid: str) -> AsyncGenerator[str, None]:
-    url = OLLAMA_ENDPOINT
+async def augmentGARPrompt(question: str):
+    system_message = """Generate an educational prompt that includes questions for conceptual understanding, practical implementation, and specific details related to the query. We will use this prompt to generate the correct response:
+
+    Please generate a prompt in the following format:
+    1. Ask for a conceptual understanding of the main topic involved in the question.
+    2. Ask for an explanation of the practical implementation of the concept.
+    3. Ask for specific details to answer the query.
+    4. If it is not an educational query, just return back the exact same response that has been sent
+
+    Examples:
+    - For a query about using Python lists for insertion sort:
+        - What is insertion sort? How can we implement it in Python? What are Python lists? Provide an example code for insertion sort using Python lists.
+    - For a query about the use of functions in JavaScript:
+        - What are functions in JavaScript? How can we define and use them? Provide an example code for defining and using functions in JavaScript.
+    - For a query about the significance of neural networks in AI:
+        - What are neural networks? How are they significant in AI? Provide examples of neural networks used in real-world AI applications.
+    - For a query about the history of machine learning:
+        - What is machine learning? Can you explain the history of machine learning? What are some key milestones in the development of machine learning?
+    - Hi:
+        - Hi
+    - How are you?:
+        - How are you?
+
+    If the question does not fit these steps, return back the exact same query that has been sent to you.
+    """
+
+    logger.info(f"Constructed system message: {system_message}")
+
+    prompt_messages = [
+        {"role": "system", "content": system_message},
+        {"role": "user", "content": "How are Python lists used in insertion sort?"},
+        {"role": "assistant", "content": "What is insertion sort? How can we implement it in Python? What are Python lists? Provide an example code for insertion sort using Python lists."},
+        {"role": "user", "content": "How do you use functions in JavaScript?"},
+        {"role": "assistant", "content": "What are functions in JavaScript? How can we define and use them? Provide an example code for defining and using functions in JavaScript."},
+        {"role": "user", "content": "What is the significance of neural networks in AI?"},
+        {"role": "user", "content": "Hows it going?"},
+        {"role": "assistant", "content": "Hows it going?"},
+        {"role": "user", "content": "Hey?"},
+        {"role": "assistant", "content": "Hey?"},
+        {"role": "assistant", "content": "What are neural networks? How are they significant in AI? Provide examples of neural networks used in real-world AI applications."},
+        {"role": "user", "content": "Can you explain the history of machine learning?"},
+        {"role": "assistant", "content": "What is machine learning? Can you explain the history of machine learning? What are some key milestones in the development of machine learning?"},
+        {"role": "user", "content": "Can you explain the history of artificial intelligence?"},
+        {"role": "assistant", "content": "What is artificial intelligence? Can you explain the history of artificial intelligence? What are some key milestones in the development of artificial intelligence?"},
+        {"role": "user", "content": question}
+    ]
+
+# infoandadvice@strath.ac.uk
+
     payload = {
-        "model": "llama3",
-        "messages": [
-            {
-                "role": "system",
-                "content": f"You are a teaching assistant; If someone asks about yourself or introduces themselves, be encouraging and kind to the student to encourage them to ask and resolve as many questions about the course and introduce yourself. Use only the Course information, to answer the question kindly and encouragingly, stating  - I donot know the answer to that based on the Course information provided. If the answer is not found in the Course or local database; always maintain a polite and supportive tone. The context in relevant to this chat is as follows, plz answer only and only on the basis of this information provided ahead and refuse to contribute to an answer if the answer is not related or present in the ahead presented context/course material - {context}"                
-            }
-        ] + chat + [
-            {
-                "role": "user",
-                "content": question
-            }
-        ],
+        "model": "llama3.1",
+        "messages": prompt_messages,
+        "stream": False
     }
 
     headers = {
         "Content-Type": "application/json"
     }
 
-    logger.info( payload)
-
-    response_chunks = []
-
-    timeout = httpx.Timeout(3600.0, read=3600.0, connect=3600.0)
+    timeout = httpx.Timeout(30.0, read=30.0, connect=30.0)
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         try:
-            async with client.stream("POST", url, json=payload, headers=headers) as response:                
-                if response.status_code != 200:
-                    detail = await response.text()
-                    logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
-                    raise HTTPException(status_code=response.status_code, detail=detail)
-                async for chunk in response.aiter_text():
-                    logger.info(f"Received chunk: {chunk}")
-                    try:
-                        chunk_data = json.loads(chunk)
-                        if 'message' in chunk_data:
-                            response_chunks.append(chunk_data['message']['content'])
-                            yield chunk
-                    except json.JSONDecodeError as e:
-                        logger.error(f"JSON decode error: {e} - Chunk: {chunk}")
-                        continue  
+            response = await client.post(OLLAMA_ENDPOINT, json=payload, headers=headers)
+            if response.status_code != 200:
+                detail = response.text
+                logger.error(f"Received non-200 response: {response.status_code}, detail: {detail}")
+                raise HTTPException(status_code=response.status_code, detail=detail)
 
-            ai_response = ''.join(response_chunks)
-            ai_message_query = chat_messages.insert().values(
-                chat_session_id=chat_session_id,
-                message=ai_response,
-                message_sender='RAG',
-                created_date=datetime.utcnow(),
-                message_uuid=message_uuid
-            )
-            await database.execute(ai_message_query)
+            response_data = response.json()
+            augmented_prompt = response_data['message']['content']
+            
+            logger.info(f"Augmented prompt: {augmented_prompt}")
+            return augmented_prompt
 
-        except httpx.ConnectError as e:
-            logger.error(f"Connection error: {e}")
-            raise HTTPException(status_code=502, detail="Failed to connect to the Ollama server.")
-        except httpx.ReadTimeout as e:
-            logger.error(f"Read timeout error: {e}")
-            raise HTTPException(status_code=504, detail="Read timeout from the Ollama server.")
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            raise HTTPException(status_code=500, detail="Internal Server Error")
+        except httpx.RequestError as exc:
+            logger.error(f"An error occurred while requesting {exc.request.url!r}.")
+            raise HTTPException(status_code=500, detail="Error communicating with the augmentation service.")
+        except httpx.HTTPStatusError as exc:
+            logger.error(f"Error response {exc.response.status_code} while requesting {exc.request.url!r}.")
+            raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text)
+
 
 @app.post("/garchat")
 async def garchat(request: ChatRequest, chat_session_id: uuid.UUID):
@@ -770,6 +797,9 @@ async def garchat(request: ChatRequest, chat_session_id: uuid.UUID):
 
     # Run classifyTopic asynchronously to avoid blocking
     asyncio.create_task(classifyTopic(question, course_id, chat_session_id, msguuid))
+
+    augmentedPrompt = await augmentGARPrompt(question)
+
     
     embeddings = HuggingFaceEmbeddings(model_name=local_embedding_model)
     vector_db = Milvus(
@@ -784,5 +814,5 @@ async def garchat(request: ChatRequest, chat_session_id: uuid.UUID):
     for doc in relevant_docs:
         context += f"- {doc.page_content}\n"
 
-    return StreamingResponse(stream_and_save_ollama_model_garchat(question, chat, context, chat_session_id, msguuid), media_type="text/plain")
+    return StreamingResponse(stream_and_save_ollama_model(augmentedPrompt, chat, context, chat_session_id, msguuid, 'GAR'), media_type="text/plain")
 
